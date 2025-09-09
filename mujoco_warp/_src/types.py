@@ -1349,6 +1349,32 @@ class Model:
   taxel_vertadr: wp.array(dtype=int)  # warp only
   taxel_sensorid: wp.array(dtype=int)  # warp only
 
+  # renderer options
+  render_rgb: bool
+  render_depth: bool
+  use_textures: bool
+  use_shadows: bool
+  use_bvh: bool
+  render_width: int
+  render_height: int
+  fov_rad: float
+
+  # renderer model fields
+  enabled_geom_groups: wp.array(dtype=int)
+  enabled_geom_groups_mask: wp.array(dtype=wp.uint32)
+  geom_group_mask: wp.array(dtype=wp.uint32)
+  mesh_bvh_ids: wp.array(dtype=wp.uint64)
+  mesh_texcoord: wp.array(dtype=wp.vec2)
+  mesh_texcoord_offsets: wp.array(dtype=int)
+  mesh_texcoord_num: wp.array(dtype=int)
+  tex_adr: wp.array(dtype=int)
+  tex_data: wp.array(dtype=wp.uint8)
+  tex_nchannel: wp.array(dtype=int)
+  tex_height: wp.array(dtype=int)
+  tex_width: wp.array(dtype=int)
+
+
+
 
 @dataclasses.dataclass
 class Contact:
@@ -1718,3 +1744,14 @@ class Data:
 
   # actuator
   actuator_trntype_body_ncon: wp.array2d(dtype=int)
+
+  # renderer
+  bvh_id: wp.uint64
+  lowers: wp.array(dtype=wp.vec3)
+  uppers: wp.array(dtype=wp.vec3)
+  groups: wp.array(dtype=wp.int32)
+  group_roots: wp.array(dtype=wp.int32)
+  pixels: wp.array3d(dtype=wp.vec3)
+  depth: wp.array3d(dtype=float)
+
+

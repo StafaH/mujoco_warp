@@ -1135,7 +1135,6 @@ def _raytrace_megakernel(
   fov_rad: float,
   cam_xpos: wp.array2d(dtype=wp.vec3),
   cam_xmat: wp.array2d(dtype=wp.mat33),
-  enabled_cameras: wp.array(dtype=bool),
   
   # BVH
   bvh_id: wp.uint64,
@@ -1143,7 +1142,6 @@ def _raytrace_megakernel(
 
   # Geometry
   enabled_geom_groups_mask: wp.array(dtype=wp.uint32),
-  enabled_geom_ids: wp.array(dtype=int),
   geom_type: wp.array(dtype=int),
   geom_dataid: wp.array(dtype=int),
   geom_group_mask: wp.array(dtype=wp.uint32),
@@ -1358,19 +1356,18 @@ def render_raytrace_megakernel(model: Model, data: Data):
       model.ncam,
       model.nlight,
       model.ngeom,
-      model.options.width,
-      model.options.height,
-      model.options.use_bvh,
-      model.options.use_textures,
-      model.options.use_shadows,
-      model.options.render_rgb,
-      model.options.render_depth,
+      model.render_width,
+      model.render_height,
+      model.use_bvh,
+      model.use_textures,
+      model.use_shadows,
+      model.render_rgb,
+      model.render_depth,
 
       # Camera
-      model.options.fov_rad,
+      model.fov_rad,
       data.cam_xpos,
       data.cam_xmat,
-      model.enabled_cameras,
 
       # BVH
       data.bvh_id,
@@ -1378,7 +1375,6 @@ def render_raytrace_megakernel(model: Model, data: Data):
 
       # Geometry
       model.enabled_geom_groups_mask,
-      model.enabled_geom_ids,
       model.geom_type,
       model.geom_dataid,
       model.geom_group_mask,
