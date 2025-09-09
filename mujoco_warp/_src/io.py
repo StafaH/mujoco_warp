@@ -1184,15 +1184,13 @@ def make_data(mjm: mujoco.MjModel, nworld: int = 1, nconmax: int = -1, njmax: in
     actuator_trntype_body_ncon=wp.zeros((nworld, np.sum(mjm.actuator_trntype == mujoco.mjtTrn.mjTRN_BODY)), dtype=int),
     # renderer
     bvh_id=wp.uint64(0),
-    lowers=wp.zeros((nworld, mjm.ngeom), dtype=wp.vec3),
-    uppers=wp.zeros((nworld, mjm.ngeom), dtype=wp.vec3),
-    groups=wp.zeros((nworld, mjm.ngeom), dtype=wp.int32),
+    lowers=wp.zeros((nworld * mjm.ngeom), dtype=wp.vec3),
+    uppers=wp.zeros((nworld * mjm.ngeom), dtype=wp.vec3),
+    groups=wp.zeros((nworld * mjm.ngeom), dtype=wp.int32),
     group_roots=wp.zeros((nworld,), dtype=wp.int32),
-    pixels=wp.zeros((nworld, mjm.ncam, mjm.options.width * mjm.options.height), dtype=wp.vec3),
-    depth=wp.zeros((nworld, mjm.ncam, mjm.options.width * mjm.options.height), dtype=float),
+    pixels=wp.zeros((nworld, mjm.ncam, 64 * 64), dtype=wp.vec3),
+    depth=wp.zeros((nworld, mjm.ncam, 64 * 64), dtype=float),
   )
-
-  render.build_warp_bvh(mjm, data)
 
   return data
 
@@ -1570,15 +1568,14 @@ def put_data(
     actuator_trntype_body_ncon=wp.zeros((nworld, np.sum(mjm.actuator_trntype == mujoco.mjtTrn.mjTRN_BODY)), dtype=int),
     # renderer
     bvh_id=wp.uint64(0),
-    lowers=wp.zeros((nworld, mjm.ngeom), dtype=wp.vec3),
-    uppers=wp.zeros((nworld, mjm.ngeom), dtype=wp.vec3),
-    groups=wp.zeros((nworld, mjm.ngeom), dtype=wp.int32),
+    lowers=wp.zeros((nworld * mjm.ngeom), dtype=wp.vec3),
+    uppers=wp.zeros((nworld * mjm.ngeom), dtype=wp.vec3),
+    groups=wp.zeros((nworld * mjm.ngeom), dtype=wp.int32),
     group_roots=wp.zeros((nworld,), dtype=wp.int32),
-    pixels=wp.zeros((nworld, mjm.ncam, mjm.options.width * mjm.options.height), dtype=wp.vec3),
-    depth=wp.zeros((nworld, mjm.ncam, mjm.options.width * mjm.options.height), dtype=float),
+    pixels=wp.zeros((nworld, mjm.ncam, 64 * 64), dtype=wp.vec3),
+    depth=wp.zeros((nworld, mjm.ncam, 64 * 64), dtype=float),
   )
 
-  render.build_warp_bvh(mjm, data)
   return data
 
 def get_data_into(

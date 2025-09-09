@@ -1344,7 +1344,7 @@ def _raytrace_megakernel(
 
 def render_raytrace_megakernel(model: Model, data: Data):
   total_views = data.nworld * model.ncam
-  total_pixels = model.options.width * model.options.height
+  total_pixels = model.render_width * model.render_height
   num_blocks = total_views // MAX_NUM_VIEWS_PER_THREAD
   
   wp.launch(
@@ -1419,7 +1419,7 @@ def render_raytrace_megakernel(model: Model, data: Data):
 
 
 def render(model: Model, data: Data):
-  if model.options.use_bvh:
+  if model.use_bvh:
     refit_warp_bvh(model, data)
 
   render_raytrace_megakernel(model, data)

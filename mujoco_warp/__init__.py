@@ -47,6 +47,9 @@ from ._src.io import put_model as put_model
 from ._src.io import reset_data as reset_data
 from ._src.passive import passive as passive
 from ._src.ray import ray as ray
+from ._src.render import build_warp_bvh as build_warp_bvh
+from ._src.render import render as render
+from ._src.render import refit_warp_bvh as refit_warp_bvh
 from ._src.sensor import energy_pos as energy_pos
 from ._src.sensor import energy_vel as energy_vel
 from ._src.sensor import sensor_acc as sensor_acc
