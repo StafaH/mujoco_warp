@@ -23,6 +23,7 @@ from mujoco_warp._src.warp_util import conditional_graph_supported
 
 from . import math
 from . import types
+from . import render
 
 # number of max iterations to run GJK/EPA
 MJ_CCD_ITERATIONS = 12
@@ -395,6 +396,46 @@ def put_model(mjm: mujoco.MjModel) -> types.Model:
 
   condim = np.concatenate((mjm.geom_condim, mjm.pair_dim))
   condim_max = np.max(condim) if len(condim) > 0 else 0
+
+  # renderer
+  nmesh = mjm.mesh_vertadr.shape[0]
+  mesh_bvh_ids = []
+  meshes_bvh = []
+  mesh_bounds_size = []
+
+  for i in range(nmesh):
+    v_start = mjm.mesh_vertadr[i]
+    v_end = v_start + mjm.mesh_vertnum[i]
+    points = mjm.mesh_vert[v_start:v_end]
+
+    f_start = mjm.mesh_faceadr[i]
+    f_end = mjm.mesh_face.shape[0] if (i + 1) >= nmesh else mjm.mesh_faceadr[i + 1]
+    indices = mjm.mesh_face[f_start:f_end]
+    indices = indices.flatten()
+
+    # Build mesh BVH and compute local-space half-extents
+    mesh = wp.Mesh(
+      points=wp.array(points, dtype=wp.vec3),
+      indices=wp.array(indices, dtype=wp.int32),
+    )
+    meshes_bvh.append(mesh)
+    mesh_bvh_ids.append(mesh.id)
+
+    pmin = points.min(axis=0)
+    pmax = points.max(axis=0)
+    half = 0.5 * (pmax - pmin)
+    mesh_bounds_size.append(half)
+
+  mesh_bvh_ids = wp.array(mesh_bvh_ids, dtype=wp.uint64)
+  mesh_bounds_size = wp.array(mesh_bounds_size, dtype=wp.vec3)
+
+  # Precompute group masks
+  enabled_mask_int = 0
+  for g in [0, 1, 2]:
+    enabled_mask_int |= (1 << int(g))
+
+  geom_group_mask_list = [(1 << int(g)) for g in mjm.geom_group]
+
 
   m = types.Model(
     nq=mjm.nq,
@@ -844,6 +885,30 @@ def put_model(mjm: mujoco.MjModel) -> types.Model:
       ],
       dtype=int,
     ),
+
+    render_rgb=True,
+    render_depth=True,
+    use_textures=True,
+    use_shadows=True,
+    use_bvh=True,
+    render_width=64,
+    render_height=64,
+    fov_rad=wp.radians(60.0),
+
+    enabled_geom_groups=[0, 1, 2],
+    enabled_geom_groups_mask=wp.array([enabled_mask_int], dtype=wp.uint32),
+    geom_group_mask=wp.array(geom_group_mask_list, dtype=wp.uint32),
+    mesh_bvh_ids=mesh_bvh_ids,
+    mesh_bounds_size=mesh_bounds_size,
+    mesh_texcoord=wp.array(mjm.mesh_texcoord, dtype=wp.vec2),
+    mesh_texcoord_offsets=wp.array(mjm.mesh_texcoordadr, dtype=int),
+    mesh_texcoord_num=wp.array(mjm.mesh_texcoordnum, dtype=int),
+    tex_adr=wp.array(mjm.tex_adr, dtype=int),
+    tex_data=wp.array(mjm.tex_data, dtype=wp.uint8),
+    tex_nchannel=wp.array(mjm.tex_nchannel, dtype=int),
+    tex_height=wp.array(mjm.tex_height, dtype=int),
+    tex_width=wp.array(mjm.tex_width, dtype=int),
+
   )
 
   return m
@@ -900,7 +965,7 @@ def make_data(mjm: mujoco.MjModel, nworld: int = 1, nconmax: int = -1, njmax: in
   nsensorcontact = np.sum(mjm.sensor_type == mujoco.mjtSensor.mjSENS_CONTACT)
   nrangefinder = sum(mjm.sensor_type == mujoco.mjtSensor.mjSENS_RANGEFINDER)
 
-  return types.Data(
+  data = types.Data(
     nworld=nworld,
     nconmax=nconmax,
     njmax=njmax,
@@ -1117,7 +1182,19 @@ def make_data(mjm: mujoco.MjModel, nworld: int = 1, nconmax: int = -1, njmax: in
     inverse_mul_m_skip=wp.zeros((nworld,), dtype=bool),
     # actuator
     actuator_trntype_body_ncon=wp.zeros((nworld, np.sum(mjm.actuator_trntype == mujoco.mjtTrn.mjTRN_BODY)), dtype=int),
+    # renderer
+    bvh_id=wp.uint64(0),
+    lowers=wp.zeros((nworld, mjm.ngeom), dtype=wp.vec3),
+    uppers=wp.zeros((nworld, mjm.ngeom), dtype=wp.vec3),
+    groups=wp.zeros((nworld, mjm.ngeom), dtype=wp.int32),
+    group_roots=wp.zeros((nworld,), dtype=wp.int32),
+    pixels=wp.zeros((nworld, mjm.ncam, mjm.options.width * mjm.options.height), dtype=wp.vec3),
+    depth=wp.zeros((nworld, mjm.ncam, mjm.options.width * mjm.options.height), dtype=float),
   )
+
+  render.build_warp_bvh(mjm, data)
+
+  return data
 
 
 def put_data(
@@ -1280,7 +1357,7 @@ def put_data(
     width = ((0, length - x.shape[0]),) + ((0, 0),) * (x.ndim - 1)
     return arr(np.pad(x, width), dtype)
 
-  return types.Data(
+  data = types.Data(
     nworld=nworld,
     nconmax=nconmax,
     njmax=njmax,
@@ -1491,8 +1568,18 @@ def put_data(
     inverse_mul_m_skip=wp.zeros((nworld,), dtype=bool),
     # actuator
     actuator_trntype_body_ncon=wp.zeros((nworld, np.sum(mjm.actuator_trntype == mujoco.mjtTrn.mjTRN_BODY)), dtype=int),
+    # renderer
+    bvh_id=wp.uint64(0),
+    lowers=wp.zeros((nworld, mjm.ngeom), dtype=wp.vec3),
+    uppers=wp.zeros((nworld, mjm.ngeom), dtype=wp.vec3),
+    groups=wp.zeros((nworld, mjm.ngeom), dtype=wp.int32),
+    group_roots=wp.zeros((nworld,), dtype=wp.int32),
+    pixels=wp.zeros((nworld, mjm.ncam, mjm.options.width * mjm.options.height), dtype=wp.vec3),
+    depth=wp.zeros((nworld, mjm.ncam, mjm.options.width * mjm.options.height), dtype=float),
   )
 
+  render.build_warp_bvh(mjm, data)
+  return data
 
 def get_data_into(
   result: mujoco.MjData,

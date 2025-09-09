@@ -1364,6 +1364,7 @@ class Model:
   enabled_geom_groups_mask: wp.array(dtype=wp.uint32)
   geom_group_mask: wp.array(dtype=wp.uint32)
   mesh_bvh_ids: wp.array(dtype=wp.uint64)
+  mesh_bounds_size: wp.array(dtype=wp.vec3)
   mesh_texcoord: wp.array(dtype=wp.vec2)
   mesh_texcoord_offsets: wp.array(dtype=int)
   mesh_texcoord_num: wp.array(dtype=int)
