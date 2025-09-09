@@ -1,16 +1,17 @@
-from . import bvh
-from . import raytrace
-from .types import RenderData
-from .types import RenderModel
-from .warp_util import event_scope
-
 from typing import Tuple
 
 import warp as wp
-from mujoco_warp._src.types import GeomType
 
-from .types import RenderData
-from .types import RenderModel
+from .math import safe_div
+from .types import MJ_MINVAL
+from .types import Data
+from .types import GeomType
+from .types import Model
+from .types import vec6
+
+
+MAX_NUM_VIEWS_PER_THREAD = 8
+
 
 @wp.struct
 class Triangle:
@@ -24,11 +25,6 @@ class Basis:
   b0: wp.vec3
   b1: wp.vec3
 
-
-class vec6f(wp.types.vector(length=6, dtype=float)):
-  pass
-
-vec6 = vec6f
 
 @wp.func
 def compute_camera_ray(
@@ -202,65 +198,65 @@ def compute_bvh_group_roots(
   group_roots[tid] = root
 
 
-def build_warp_bvh(mdw_model: RenderModel, mdw_data: RenderData):
+def build_warp_bvh(model: Model, data: Data):
   """Build a Warp BVH for all geometries in all worlds."""
 
   wp.launch(
     kernel=compute_bvh_bounds,
-    dim=(mdw_data.nworld * mdw_model.ngeom),
+    dim=(data.nworld * model.ngeom),
     inputs=[
-      mdw_model.ngeom,
-      mdw_data.nworld,
-      mdw_model.geom_type,
-      mdw_model.geom_dataid,
-      mdw_model.geom_size,
-      mdw_data.geom_xpos,
-      mdw_data.geom_xmat,
-      mdw_model.mesh_bounds_size,
-      mdw_data.lowers,
-      mdw_data.uppers,
-      mdw_data.groups,
+      model.ngeom,
+      data.nworld,
+      model.geom_type,
+      model.geom_dataid,
+      model.geom_size,
+      data.geom_xpos,
+      data.geom_xmat,
+      model.mesh_bounds_size,
+      data.lowers,
+      data.uppers,
+      data.groups,
     ],
   )
 
   bvh = wp.Bvh(
-    mdw_data.lowers,
-    mdw_data.uppers,
-    groups=mdw_data.groups,
-    num_groups=mdw_data.nworld,
+    data.lowers,
+    data.uppers,
+    groups=data.groups,
+    num_groups=data.nworld,
   )
 
   # Store BVH handles for later queries
-  mdw_data.bvh = bvh
-  mdw_data.bvh_id = bvh.id
+  data.bvh = bvh
+  data.bvh_id = bvh.id
 
   wp.launch(
     kernel=compute_bvh_group_roots,
-    dim=mdw_data.nworld,
-    inputs=[bvh.id, mdw_data.group_roots],
+    dim=data.nworld,
+    inputs=[bvh.id, data.group_roots],
   )
 
 
-def refit_warp_bvh(mdw_model: RenderModel, mdw_data: RenderData):
+def refit_warp_bvh(model: Model, data: Data):
   wp.launch(
     kernel=compute_bvh_bounds,
-    dim=(mdw_data.nworld * mdw_model.ngeom),
+    dim=(data.nworld * model.ngeom),
     inputs=[
-      mdw_model.ngeom,
-      mdw_data.nworld,
-      mdw_model.geom_type,
-      mdw_model.geom_dataid,
-      mdw_model.geom_size,
-      mdw_data.geom_xpos,
-      mdw_data.geom_xmat,
-      mdw_model.mesh_bounds_size,
-      mdw_data.lowers,
-      mdw_data.uppers,
-      mdw_data.groups,
+      model.ngeom,
+      data.nworld,
+      model.geom_type,
+      model.geom_dataid,
+      model.geom_size,
+      data.geom_xpos,
+      data.geom_xmat,
+      model.mesh_bounds_size,
+      data.lowers,
+      data.uppers,
+      data.groups,
     ],
   )
 
-  mdw_data.bvh.refit()
+  data.bvh.refit()
 
 
 @wp.func
@@ -666,7 +662,6 @@ def ray_mesh_with_normal(
   return False, wp.inf, wp.vec3(0.0, 0.0, 0.0), 0.0, 0.0, -1, -1
 
 
-
 @wp.func
 def sample_texture_2d(
   uv: wp.vec2,
@@ -813,12 +808,6 @@ def sample_texture(
     )
 
   return tex_color
-
-
-from typing import Tuple
-import warp as wp
-
-from madrona_warp._src.ray import intersect_single_geom
 
 
 @wp.func
@@ -1018,22 +1007,6 @@ def cast_ray_first_hit_bvh(
       return True
 
   return False
-
-
-import warp as wp
-
-from madrona_warp._src.camera import compute_camera_ray
-from madrona_warp._src.cast import cast_ray
-from madrona_warp._src.cast import cast_ray_bvh
-from madrona_warp._src.cast import cast_ray_first_hit
-from madrona_warp._src.cast import cast_ray_first_hit_bvh
-from madrona_warp._src.texture import sample_texture
-from madrona_warp._src.types import RenderData
-from madrona_warp._src.types import RenderModel
-from madrona_warp._src.warp_util import event_scope
-
-
-MAX_NUM_VIEWS_PER_THREAD = 8
 
 
 @wp.func
@@ -1371,10 +1344,9 @@ def _raytrace_megakernel(
       out_depth[world_idx, cam_idx, pixel_idx] = dist
 
 
-@event_scope
-def render_raytrace_megakernel(mdw_model: RenderModel, mdw_data: RenderData):
-  total_views = mdw_data.nworld * mdw_model.ncam
-  total_pixels = mdw_model.options.width * mdw_model.options.height
+def render_raytrace_megakernel(model: Model, data: Data):
+  total_views = data.nworld * model.ncam
+  total_pixels = model.options.width * model.options.height
   num_blocks = total_views // MAX_NUM_VIEWS_PER_THREAD
   
   wp.launch(
@@ -1382,76 +1354,76 @@ def render_raytrace_megakernel(mdw_model: RenderModel, mdw_data: RenderData):
     dim=(num_blocks * total_pixels),
     inputs=[
       # Model and Options
-      mdw_data.nworld,
-      mdw_model.ncam,
-      mdw_model.nlight,
-      mdw_model.ngeom,
-      mdw_model.options.width,
-      mdw_model.options.height,
-      mdw_model.options.use_bvh,
-      mdw_model.options.use_textures,
-      mdw_model.options.use_shadows,
-      mdw_model.options.render_rgb,
-      mdw_model.options.render_depth,
+      data.nworld,
+      model.ncam,
+      model.nlight,
+      model.ngeom,
+      model.options.width,
+      model.options.height,
+      model.options.use_bvh,
+      model.options.use_textures,
+      model.options.use_shadows,
+      model.options.render_rgb,
+      model.options.render_depth,
 
       # Camera
-      mdw_model.options.fov_rad,
-      mdw_data.cam_xpos,
-      mdw_data.cam_xmat,
-      mdw_model.enabled_cameras,
+      model.options.fov_rad,
+      data.cam_xpos,
+      data.cam_xmat,
+      model.enabled_cameras,
 
       # BVH
-      mdw_data.bvh_id,
-      mdw_data.group_roots,
+      data.bvh_id,
+      data.group_roots,
 
       # Geometry
-      mdw_model.enabled_geom_groups_mask,
-      mdw_model.enabled_geom_ids,
-      mdw_model.geom_type,
-      mdw_model.geom_dataid,
-      mdw_model.geom_group_mask,
-      mdw_model.geom_matid,
-      mdw_model.geom_size,
-      mdw_model.geom_rgba,
-      mdw_model.mesh_bvh_ids,
-      mdw_model.mesh_faceadr,
-      mdw_model.mesh_face,
-      mdw_model.mesh_vertadr,
-      mdw_model.mesh_texcoord,
-      mdw_model.mesh_texcoord_offsets,
-      mdw_model.mesh_texcoord_num,
-      mdw_model.mesh_normal,
+      model.enabled_geom_groups_mask,
+      model.enabled_geom_ids,
+      model.geom_type,
+      model.geom_dataid,
+      model.geom_group_mask,
+      model.geom_matid,
+      model.geom_size,
+      model.geom_rgba,
+      model.mesh_bvh_ids,
+      model.mesh_faceadr,
+      model.mesh_face,
+      model.mesh_vertadr,
+      model.mesh_texcoord,
+      model.mesh_texcoord_offsets,
+      model.mesh_texcoord_num,
+      model.mesh_normal,
 
       # Textures
-      mdw_model.mat_texid,
-      mdw_model.mat_texrepeat,
-      mdw_model.mat_rgba,
-      mdw_model.tex_adr,
-      mdw_model.tex_data,
-      mdw_model.tex_nchannel,
-      mdw_model.tex_height,
-      mdw_model.tex_width,
+      model.mat_texid,
+      model.mat_texrepeat,
+      model.mat_rgba,
+      model.tex_adr,
+      model.tex_data,
+      model.tex_nchannel,
+      model.tex_height,
+      model.tex_width,
 
       # Lights
-      mdw_model.light_active,
-      mdw_model.light_type,
-      mdw_model.light_castshadow,
-      mdw_data.light_xpos,
-      mdw_data.light_xdir,
+      model.light_active,
+      model.light_type,
+      model.light_castshadow,
+      data.light_xpos,
+      data.light_xdir,
 
       # Data
-      mdw_data.geom_xpos,
-      mdw_data.geom_xmat,
+      data.geom_xpos,
+      data.geom_xmat,
     ],
     outputs=[
-      mdw_data.pixels,
-      mdw_data.depth,
+      data.pixels,
+      data.depth,
     ],
   )
 
 
-def render(mdw_model: RenderModel, mdw_data: RenderData):
-  if mdw_model.options.use_bvh:
-    bvh.refit_warp_bvh(mdw_model, mdw_data)
+def render(model: Model, data: Data):
+  if model.options.use_bvh:
+    refit_warp_bvh(model, data)
 
-  raytrace.render_raytrace_megakernel(mdw_model, mdw_data)
+  render_raytrace_megakernel(model, data)
