@@ -143,7 +143,7 @@ def _main(argv: Sequence[str]):
                 mjw.step(m, d)
 
         print(
-            f"Model: ncam={m.ncam} nlight={m.nlight} ngeom={m.ngeom}\n"
+            f"Model: ncam={m.ncam} nlight={m.nlight} ngeom={m.ngeom} bvh_ngeom={m.bvh_ngeom}\n"
             f"Render: {m.render_opt.width}x{m.render_opt.height} rgb={m.render_opt.render_rgb} depth={m.render_opt.render_depth}"
         )
 
