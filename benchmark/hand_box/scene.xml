@@ -1,0 +1,52 @@
+<mujoco model="hand_box_tunneling">
+  <compiler angle="radian" coordinate="local"/>
+
+  <option timestep="0.005" integrator="implicitfast">
+    <flag eulerdamp="disable"/>
+  </option>
+
+  <default>
+    <geom contype="1" conaffinity="1" friction="1.0 0.005 0.0001" solimp="0.99 0.995 0.01" solref="0.01 1"/>
+    <default class="hand">
+      <geom group="2"/>
+    </default>
+  </default>
+
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0.1 0.1 0.1"/>
+    <scale forcewidth="0.04" contactwidth="0.05" contactheight="0.02"/>
+  </visual>
+
+  <worldbody>
+    <!-- Camera and lighting -->
+    <camera name="cam0" pos="0 -1.2 0.7"/>
+    <light pos="0 0 2.0" dir="0 0 -1" directional="true"/>
+
+    <!-- Plane at z=0 -->
+    <geom name="floor" type="plane" size="0 0 0.05" material="floor" rgba="0.9 0.9 0.9 1"/>
+
+    <!-- Cube resting slightly above plane -->
+    <body name="cube" pos="0 0 0.06">
+      <freejoint/>
+      <geom type="box" size="0.05 0.05 0.05" rgba="0.2 0.5 0.9 1"/>
+    </body>
+
+    <!-- Hand: capsule palm plus two fingertip boxes -->
+    <!-- Oriented so capsule long axis is along x, fingers below towards the plane -->
+    <body name="hand" pos="0 0 0.35" quat="0.7071068 0 0 0.7071068">
+      <!-- quat rotates z-axis to x-axis -->
+      <freejoint/>
+      <geom class="hand" name="hand_capsule" type="capsule" size="0.03 0.10" rgba="0.8 0.8 0.8 1"/>
+      <!-- fingers near one end of capsule, offset along +x (original z before quat) -->
+      <geom class="hand" name="left_finger" type="box" size="0.015 0.01 0.03" pos="0 0.04 -0.10" rgba="0.3 0.3 0.3 1"/>
+      <geom class="hand" name="right_finger" type="box" size="0.015 0.01 0.03" pos="0 -0.04 -0.10" rgba="0.3 0.3 0.3 1"/>
+    </body>
+  </worldbody>
+
+  <asset>
+    <texture type="2d" name="floor_tex" builtin="checker" width="300" height="300" rgb1="0.8 0.8 0.8" rgb2="0.7 0.7 0.7"/>
+    <material name="floor" texture="floor_tex" texrepeat="4 4"/>
+  </asset>
+</mujoco>
+
+
