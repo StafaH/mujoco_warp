@@ -54,6 +54,7 @@ _OUTPUT_DEPTH = flags.DEFINE_string("output_depth", "debug_depth.png", "output p
 _DEPTH_SCALE = flags.DEFINE_float("depth_scale", 5.0, "scale factor to map depth to 0..255 for preview")
 _ROLL = flags.DEFINE_bool("roll_kinematics", False, "advance simulation before rendering")
 _ROLL_STEPS = flags.DEFINE_integer("roll_steps", 50, "number of steps to advance when rolling")
+_DEBUG_AABB = flags.DEFINE_bool("debug_aabb", False, "shade BVH AABBs instead of geom shapes")
 
 
 def _load_model(path: epath.Path) -> mujoco.MjModel:
@@ -134,6 +135,7 @@ def _main(argv: Sequence[str]):
             wp.radians(_FOV_DEG.value),
             _RENDER_RGB.value,
             _RENDER_DEPTH.value,
+            debug_aabb=_DEBUG_AABB.value,
         )
 
         # optionally advance the simulation before rendering

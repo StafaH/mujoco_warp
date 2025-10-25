@@ -101,6 +101,57 @@ def pack_rgba_to_uint32(r: wp.float32, g: wp.float32, b: wp.float32, a: wp.float
 
 
 @wp.func
+def ray_aabb_with_normal(
+  lower: wp.vec3,
+  upper: wp.vec3,
+  ray_origin: wp.vec3,
+  ray_dir: wp.vec3,
+) -> Tuple[bool, wp.float32, wp.vec3]:
+  inv_dir = 1.0 / ray_dir
+
+  t1 = (lower[0] - ray_origin[0]) * inv_dir[0]
+  t2 = (upper[0] - ray_origin[0]) * inv_dir[0]
+  tmin = wp.min(t1, t2)
+  tmax = wp.max(t1, t2)
+  hit_axis = 0
+
+  ty1 = (lower[1] - ray_origin[1]) * inv_dir[1]
+  ty2 = (upper[1] - ray_origin[1]) * inv_dir[1]
+  tymin = wp.min(ty1, ty2)
+  tymax = wp.max(ty1, ty2)
+
+  if tymin > tmin:
+    tmin = tymin
+    hit_axis = 1
+  if tymax < tmax:
+    tmax = tymax
+
+  tz1 = (lower[2] - ray_origin[2]) * inv_dir[2]
+  tz2 = (upper[2] - ray_origin[2]) * inv_dir[2]
+  tzmin = wp.min(tz1, tz2)
+  tzmax = wp.max(tz1, tz2)
+
+  if tzmin > tmin:
+    tmin = tzmin
+    hit_axis = 2
+  if tzmax < tmax:
+    tmax = tzmax
+
+  if (tmax >= 0.0) and (tmax >= tmin):
+    # derive normal based on which axis provided entry
+    n = wp.vec3(0.0, 0.0, 0.0)
+    s = -1.0 if (hit_axis == 0 and (t1 > t2)) or (hit_axis == 1 and (ty1 > ty2)) or (hit_axis == 2 and (tz1 > tz2)) else 1.0
+    if hit_axis == 0:
+      n = wp.vec3(s, 0.0, 0.0)
+    if hit_axis == 1:
+      n = wp.vec3(0.0, s, 0.0)
+    if hit_axis == 2:
+      n = wp.vec3(0.0, 0.0, s)
+    return True, tmin if tmin >= 0.0 else tmax, wp.normalize(n)
+  return False, wp.float32(0.0), wp.vec3(0.0, 0.0, 0.0)
+
+
+@wp.func
 def sample_texture_2d(
   uv: wp.vec2,
   width: int,
@@ -516,6 +567,7 @@ def render_raytrace_megakernel(m: Model, d: Data, rc: RenderContext):
     use_shadows: bool,
     render_rgb: bool,
     render_depth: bool,
+    debug_aabb: bool,
 
     # Camera
     fov_rad: float,
@@ -538,6 +590,8 @@ def render_raytrace_megakernel(m: Model, d: Data, rc: RenderContext):
     mesh_face: wp.array(dtype=wp.vec3i),
     mesh_texcoord: wp.array(dtype=wp.vec2),
     mesh_texcoord_offsets: wp.array(dtype=int),
+    lowers: wp.array(dtype=wp.vec3),
+    uppers: wp.array(dtype=wp.vec3),
 
     # Textures
     mat_texid: wp.array3d(dtype=int),
@@ -603,110 +657,141 @@ def render_raytrace_megakernel(m: Model, d: Data, rc: RenderContext):
         cam_xmat[world_idx, cam_idx],
       )
 
-      geom_id, dist, normal, u, v, f, mesh_id = cast_ray(
-        bvh_id,
-        group_roots[world_idx],
-        world_idx,
-        bvh_ngeom,
-        enabled_geom_ids,
-        geom_type,
-        geom_dataid,
-        geom_size,
-        mesh_bvh_ids,
-        geom_xpos,
-        geom_xmat,
-        ray_origin_world,
-        ray_dir_world,
-      )
+      if debug_aabb:
+        # BVH bounds debug: shade the AABBs instead of the actual geom shapes
+        dist = wp.float32(wp.inf)
+        normal = wp.vec3(0.0, 0.0, 0.0)
+        query = wp.bvh_query_ray(bvh_id, ray_origin_world, ray_dir_world, group_roots[world_idx])
+        bounds_nr = wp.int32(0)
 
-      # Early Out
-      if geom_id == -1:
-        continue
+        while wp.bvh_query_next(query, bounds_nr, dist):
+          idx = bounds_nr
+          lower = lowers[idx]
+          upper = uppers[idx]
+          h, d, n = ray_aabb_with_normal(lower, upper, ray_origin_world, ray_dir_world)
+          if h and d < dist:
+            dist = d
+            normal = n
 
-      # Shade the pixel
-      hit_point = ray_origin_world + ray_dir_world * dist
+        if dist == wp.float32(wp.inf):
+          continue
 
-      if geom_matid[world_idx, geom_id] == -1:
-        color = geom_rgba[world_idx, geom_id]
+        hit_color = wp.vec3(wp.abs(normal[0]), wp.abs(normal[1]), wp.abs(normal[2]))
+
+        if render_rgb:
+          out_pixels[world_idx, cam_idx, mapped_idx] = pack_rgba_to_uint32(
+            hit_color[0] * 255.0,
+            hit_color[1] * 255.0,
+            hit_color[2] * 255.0,
+            1.0,
+          )
+        if render_depth:
+          out_depth[world_idx, cam_idx, mapped_idx] = dist
       else:
-        color = mat_rgba[world_idx, geom_matid[world_idx, geom_id]]
-
-      base_color = wp.vec3(color[0], color[1], color[2])
-      hit_color = base_color
-
-      if use_textures:
-        mat_id = geom_matid[world_idx, geom_id]
-        tex_id = mat_texid[world_idx, mat_id, 1]
-
-        tex_color = sample_texture(
-          world_idx,
-          geom_id,
-          geom_type,
-          mat_id,
-          tex_id,
-          mat_texrepeat[world_idx, mat_id],
-          tex_adr[tex_id],
-          tex_data,
-          tex_height[tex_id],
-          tex_width[tex_id],
-          geom_xpos[world_idx, geom_id],
-          geom_xmat[world_idx, geom_id],
-          mesh_faceadr,
-          mesh_face,
-          mesh_texcoord,
-          mesh_texcoord_offsets,
-          hit_point,
-          u,
-          v,
-          f,
-          mesh_id,
-        )
-        base_color = wp.vec3(
-          base_color[0] * tex_color[0],
-          base_color[1] * tex_color[1],
-          base_color[2] * tex_color[2],
-        )
-
-      ambient = 0.15
-      result = base_color * ambient
-
-      # Apply lighting and shadows
-      for l in range(wp.static(static_nlight)):
-        light_contribution = compute_lighting(
-          use_shadows,
+        geom_id, dist, normal, u, v, f, mesh_id = cast_ray(
           bvh_id,
           group_roots[world_idx],
+          world_idx,
           bvh_ngeom,
           enabled_geom_ids,
-          world_idx,
-          light_active[world_idx, l],
-          light_type[world_idx, l],
-          light_castshadow[world_idx, l],
-          light_xpos[world_idx, l],
-          light_xdir[world_idx, l],
-          normal,
           geom_type,
           geom_dataid,
           geom_size,
           mesh_bvh_ids,
           geom_xpos,
           geom_xmat,
-          hit_point,
+          ray_origin_world,
+          ray_dir_world,
         )
-        result = result + base_color * light_contribution
 
-      hit_color = wp.min(result, wp.vec3(1.0, 1.0, 1.0))
-      hit_color = wp.max(hit_color, wp.vec3(0.0, 0.0, 0.0))
+        # Early Out
+        if geom_id == -1:
+          continue
 
-      if render_rgb:
-        out_pixels[world_idx, cam_idx, mapped_idx] = pack_rgba_to_uint32(
-          hit_color[0] * 255.0,
-          hit_color[1] * 255.0,
-          hit_color[2] * 255.0,
-          1.0,
-        )
-      if render_depth:
-        out_depth[world_idx, cam_idx, mapped_idx] = dist
+        # Shade the pixel
+        hit_point = ray_origin_world + ray_dir_world * dist
+
+        if geom_matid[world_idx, geom_id] == -1:
+          color = geom_rgba[world_idx, geom_id]
+        else:
+          color = mat_rgba[world_idx, geom_matid[world_idx, geom_id]]
+
+        base_color = wp.vec3(color[0], color[1], color[2])
+        hit_color = base_color
+
+        if use_textures:
+          mat_id = geom_matid[world_idx, geom_id]
+          tex_id = mat_texid[world_idx, mat_id, 1]
+
+          tex_color = sample_texture(
+            world_idx,
+            geom_id,
+            geom_type,
+            mat_id,
+            tex_id,
+            mat_texrepeat[world_idx, mat_id],
+            tex_adr[tex_id],
+            tex_data,
+            tex_height[tex_id],
+            tex_width[tex_id],
+            geom_xpos[world_idx, geom_id],
+            geom_xmat[world_idx, geom_id],
+            mesh_faceadr,
+            mesh_face,
+            mesh_texcoord,
+            mesh_texcoord_offsets,
+            hit_point,
+            u,
+            v,
+            f,
+            mesh_id,
+          )
+          base_color = wp.vec3(
+            base_color[0] * tex_color[0],
+            base_color[1] * tex_color[1],
+            base_color[2] * tex_color[2],
+          )
+
+        ambient = 0.15
+        result = base_color * ambient
+
+        # Apply lighting and shadows
+        for l in range(wp.static(static_nlight)):
+          light_contribution = compute_lighting(
+            use_shadows,
+            bvh_id,
+            group_roots[world_idx],
+            bvh_ngeom,
+            enabled_geom_ids,
+            world_idx,
+            light_active[world_idx, l],
+            light_type[world_idx, l],
+            light_castshadow[world_idx, l],
+            light_xpos[world_idx, l],
+            light_xdir[world_idx, l],
+            normal,
+            geom_type,
+            geom_dataid,
+            geom_size,
+            mesh_bvh_ids,
+            geom_xpos,
+            geom_xmat,
+            hit_point,
+          )
+          result = result + base_color * light_contribution
+
+        hit_color = wp.min(result, wp.vec3(1.0, 1.0, 1.0))
+        hit_color = wp.max(hit_color, wp.vec3(0.0, 0.0, 0.0))
+
+        if render_rgb:
+          out_pixels[world_idx, cam_idx, mapped_idx] = pack_rgba_to_uint32(
+            hit_color[0] * 255.0,
+            hit_color[1] * 255.0,
+            hit_color[2] * 255.0,
+            1.0,
+          )
+        if render_depth:
+          out_depth[world_idx, cam_idx, mapped_idx] = dist
 
   wp.launch(
     kernel=_raytrace_megakernel,
@@ -724,6 +809,7 @@ def render_raytrace_megakernel(m: Model, d: Data, rc: RenderContext):
       rc.use_shadows,
       rc.render_rgb,
       rc.render_depth,
+      rc.debug_aabb,
 
       # Camera
       rc.fov_rad,
@@ -746,6 +832,8 @@ def render_raytrace_megakernel(m: Model, d: Data, rc: RenderContext):
       m.mesh_face,
       rc.mesh_texcoord,
       rc.mesh_texcoord_offsets,
+      rc.lowers,
+      rc.uppers,
 
       # Textures
       m.mat_texid,

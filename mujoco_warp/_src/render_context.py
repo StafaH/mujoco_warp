@@ -27,6 +27,7 @@ def create_render_context(
   render_rgb: bool,
   render_depth: bool,
   enabled_geom_groups = [0, 1, 2],
+  debug_aabb: bool = False,
 ):
   rc = RenderContext(
     mjm,
@@ -41,6 +42,7 @@ def create_render_context(
     render_rgb,
     render_depth,
     enabled_geom_groups,
+    debug_aabb,
   )
   return rc
 
@@ -58,6 +60,7 @@ def create_render_context_in_registry(
   render_rgb: bool,
   render_depth: bool,
   enabled_geom_groups = [0, 1, 2],
+  debug_aabb: bool = False,
 ):
   rc = RenderContext(
     mjm,
@@ -72,6 +75,7 @@ def create_render_context_in_registry(
     render_rgb,
     render_depth,
     enabled_geom_groups,
+    debug_aabb,
   )
   with threading.Lock():
     key = len(_RENDER_CONTEXT_BUFFERS) + 1
@@ -173,6 +177,7 @@ class RenderContext:
   uppers: wp.array(dtype=wp.vec3)
   groups: wp.array(dtype=wp.int32)
   group_roots: wp.array(dtype=wp.int32)
+  debug_aabb: bool
   pixels: wp.array3d(dtype=wp.uint32)
   depth: wp.array3d(dtype=wp.float32)
 
@@ -190,6 +195,7 @@ class RenderContext:
     render_rgb,
     render_depth,
     enabled_geom_groups = [0, 1, 2],
+    debug_aabb: bool = False,
   ):
     
     nmesh = mjm.nmesh
@@ -234,6 +240,7 @@ class RenderContext:
     tex_data_packed, tex_adr_packed = _create_packed_texture_data(mjm)
 
     bvh_ngeom = len(geom_enabled_idx)
+    print("Number of BVH geometries: ", bvh_ngeom)
     self.bvh_ngeom=bvh_ngeom
     self.nworld=nworld
     self.ncam=mjm.ncam
@@ -244,6 +251,7 @@ class RenderContext:
     self.fov_rad=fov_rad
     self.render_rgb=render_rgb
     self.render_depth=render_depth
+    self.debug_aabb=debug_aabb
     self.enabled_geom_ids=wp.array(geom_enabled_idx, dtype=int)
     self.mesh_bvh_ids=wp.array(mesh_bvh_ids, dtype=wp.uint64)
     self.mesh_bounds_size=wp.array(mesh_bounds_size, dtype=wp.vec3)
