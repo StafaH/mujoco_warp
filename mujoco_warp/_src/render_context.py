@@ -1,6 +1,7 @@
 import dataclasses
 
 import warp as wp
+import numpy as np
 import mujoco
 import threading
 
@@ -167,8 +168,8 @@ class RenderContext:
   tex_data: wp.array(dtype=wp.uint32)
   tex_height: wp.array(dtype=int)
   tex_width: wp.array(dtype=int)
+  tex_ids: wp.array(dtype=wp.uint64)
   bvh_id: wp.uint64
-  mesh_bvh_ids: wp.array(dtype=wp.uint64)
   lowers: wp.array(dtype=wp.vec3)
   uppers: wp.array(dtype=wp.vec3)
   groups: wp.array(dtype=wp.int32)
@@ -222,6 +223,7 @@ class RenderContext:
         points=wp.array(points, dtype=wp.vec3),
         indices=wp.array(indices, dtype=wp.int32),
         bvh_constructor="sah",
+        bvh_leaf_size=4,
       )
       self.mesh_registry[mesh.id] = mesh
       mesh_bvh_ids[i] = mesh.id
@@ -232,6 +234,24 @@ class RenderContext:
       mesh_bounds_size[i] = half
     
     tex_data_packed, tex_adr_packed = _create_packed_texture_data(mjm)
+
+    self.texture_registry = {}
+    tex_ids = [wp.uint64(0) for _ in range(mjm.ntex)]
+
+    for i in range(mjm.ntex):
+        w, h = mjm.tex_width[i], mjm.tex_height[i]
+        start = mjm.tex_adr[i]
+        end = start + (h * w * mjm.tex_nchannel[i])
+
+        rgb = mjm.tex_data[start:end]
+        # add 255 every third element to create 4 channel rgba texture
+        rgb = np.insert(
+          rgb, np.arange(3, rgb.shape[0] + 1, 3), 255, axis=0)
+
+        rgb_wp = wp.array(rgb, dtype=wp.uint8)
+        tex = wp.Texture(rgb_wp, w, h, 4)
+        self.texture_registry[tex.id] = tex
+        tex_ids[i] = tex.id
 
     bvh_ngeom = len(geom_enabled_idx)
     self.bvh_ngeom=bvh_ngeom
@@ -250,6 +270,7 @@ class RenderContext:
     self.mesh_texcoord=wp.array(mjm.mesh_texcoord, dtype=wp.vec2)
     self.mesh_texcoord_offsets=wp.array(mjm.mesh_texcoordadr, dtype=int)
     self.mesh_texcoord_num=wp.array(mjm.mesh_texcoordnum, dtype=int)
+    self.tex_ids=wp.array(tex_ids, dtype=wp.uint64)
     self.tex_adr=tex_adr_packed
     self.tex_data=tex_data_packed
     self.tex_height=wp.array(mjm.tex_height, dtype=int)
