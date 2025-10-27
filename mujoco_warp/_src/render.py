@@ -12,6 +12,7 @@ from .ray import _ray_plane
 from .ray import _ray_sphere
 from .ray import _ray_capsule
 from .ray import _ray_box
+from .ray import _ray_map
 from .types import Data
 from .types import Model
 from .types import GeomType
@@ -252,6 +253,35 @@ def sample_texture(
 
   return tex_color
 
+@wp.func
+def ray_mesh_with_bvh_any_hit(
+  mesh_bvh_ids: wp.array(dtype=wp.uint64),
+  mesh_geom_id: int,
+  pos: wp.vec3,
+  mat: wp.mat33,
+  pnt: wp.vec3,
+  vec: wp.vec3,
+  max_t: wp.float32,
+) -> float:
+  """Returns intersection information at which a ray intersects with a mesh.
+  
+  Requires wp.Mesh be constructed and their ids to be passed"""
+  t = wp.float32(wp.inf)
+  u = wp.float32(0.0)
+  v = wp.float32(0.0)
+  sign = wp.float32(0.0)
+  n = wp.vec3()
+  f = int(-1)
+
+  lpnt, lvec = _ray_map(pos, mat, pnt, vec)
+  hit = wp.mesh_query_ray(
+    mesh_bvh_ids[mesh_geom_id], lpnt, lvec, -1.0, t, u, v, sign, n, f)
+
+  if hit:
+    return t
+
+  return max_t
+
 
 @wp.func
 def cast_ray(
@@ -396,7 +426,7 @@ def cast_ray_first_hit(
         ray_dir_world,
       )
     if geom_type[gi] == GeomType.MESH:
-      h, d, n, u, v, f, mesh_id = ray_mesh_with_bvh(
+      d = ray_mesh_with_bvh_any_hit(
         mesh_bvh_ids,
         geom_dataid[gi],
         geom_xpos[world_id, gi],
