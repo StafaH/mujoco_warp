@@ -713,6 +713,7 @@ def ray_mesh_with_bvh(
   pnt: wp.vec3,
   vec: wp.vec3,
   max_t: wp.float32,
+  mesh_bounds_size: wp.array(dtype=wp.vec3),
 ) -> Tuple[bool, wp.float32, wp.vec3, wp.float32, wp.float32, int, int]:
   """Returns intersection information at which a ray intersects with a mesh.
   
@@ -725,7 +726,33 @@ def ray_mesh_with_bvh(
   f = int(-1)
 
   lpnt, lvec = _ray_map(pos, mat, pnt, vec)
-  hit = wp.mesh_query_ray(
+
+  # Early reject using mesh-local AABB (top-level mesh bounds)
+  half = mesh_bounds_size[mesh_geom_id]
+  tmin = wp.float32(0.0)
+  tmax = wp.float32(max_t)
+
+  for i in range(3):
+    d = lvec[i]
+    o = lpnt[i]
+    h = half[i]
+    eps = wp.float32(1.0e-8)
+    if wp.abs(d) < eps:
+      # Ray parallel to slab; must be within bounds
+      if o < -h or o > h:
+        return False, wp.inf, wp.vec3(0.0, 0.0, 0.0), 0.0, 0.0, -1, -1
+    else:
+      inv = wp.float32(1.0) / d
+      t0 = (-h - o) * inv
+      t1 = ( h - o) * inv
+      lo = wp.min(t0, t1)
+      hi = wp.max(t0, t1)
+      tmin = wp.max(tmin, lo)
+      tmax = wp.min(tmax, hi)
+      if tmax < tmin:
+        return False, wp.inf, wp.vec3(0.0, 0.0, 0.0), 0.0, 0.0, -1, -1
+
+  hit = wp.mesh_query_ray_orderered(
     mesh_bvh_ids[mesh_geom_id], lpnt, lvec, max_t, t, u, v, sign, n, f)
 
   if hit and wp.dot(lvec, n) < 0.0: # Backface culling in local space

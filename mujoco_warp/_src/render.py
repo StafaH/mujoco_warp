@@ -19,7 +19,7 @@ from .types import GeomType
 from .warp_util import event_scope
 from .render_context import RenderContext
 
-MAX_NUM_VIEWS_PER_THREAD = 8
+MAX_NUM_VIEWS_PER_THREAD = 1
 
 BACKGROUND_COLOR = (
   255 << 24 |
@@ -28,8 +28,12 @@ BACKGROUND_COLOR = (
   int(0.1 * 255.0)
 )
 
-TILE_W: int = 32
-TILE_H: int = 8
+# Cached spotlight cone cosines
+SPOT_INNER_COS = wp.float32(0.95)
+SPOT_OUTER_COS = wp.float32(0.85)
+
+TILE_W: int = 16
+TILE_H: int = 16
 THREADS_PER_TILE: int = TILE_W * TILE_H
 
 @wp.func
@@ -274,7 +278,7 @@ def ray_mesh_with_bvh_any_hit(
   f = int(-1)
 
   lpnt, lvec = _ray_map(pos, mat, pnt, vec)
-  hit = wp.mesh_query_ray(
+  hit = wp.mesh_query_ray_orderered(
     mesh_bvh_ids[mesh_geom_id], lpnt, lvec, -1.0, t, u, v, sign, n, f)
 
   if hit:
@@ -294,6 +298,7 @@ def cast_ray(
   geom_dataid: wp.array(dtype=int),
   geom_size: wp.array2d(dtype=wp.vec3),
   mesh_bvh_ids: wp.array(dtype=wp.uint64),
+  mesh_bounds_size: wp.array(dtype=wp.vec3),
   geom_xpos: wp.array2d(dtype=wp.vec3),
   geom_xmat: wp.array2d(dtype=wp.mat33),
   ray_origin_world: wp.vec3,
@@ -315,47 +320,56 @@ def cast_ray(
     gi_bvh_local = gi_global - (world_id * bvh_ngeom)
     gi = enabled_geom_ids[gi_bvh_local]
 
-    if geom_type[gi] == GeomType.PLANE:
+    # Hoist common loads
+    pos = geom_xpos[world_id, gi]
+    xmat = geom_xmat[world_id, gi]
+    size = geom_size[world_id, gi]
+    gtype = geom_type[gi]
+
+    if gtype == GeomType.PLANE:
       h, d, n = ray_plane_with_normal(
-        geom_xpos[world_id, gi],
-        geom_xmat[world_id, gi],
-        geom_size[world_id, gi],
+        pos,
+        xmat,
+        size,
         ray_origin_world,
         ray_dir_world,
       )
-    if geom_type[gi] == GeomType.SPHERE:
+    elif gtype == GeomType.SPHERE:
       h, d, n = ray_sphere_with_normal(
-        geom_xpos[world_id, gi],
-        geom_size[world_id, gi][0] * geom_size[world_id, gi][0],
+        pos,
+        size[0] * size[0],
         ray_origin_world,
         ray_dir_world,
       )
-    if geom_type[gi] == GeomType.CAPSULE:
+    elif gtype == GeomType.CAPSULE:
       h, d, n = ray_capsule_with_normal(
-        geom_xpos[world_id, gi],
-        geom_xmat[world_id, gi],
-        geom_size[world_id, gi],
+        pos,
+        xmat,
+        size,
         ray_origin_world,
         ray_dir_world,
       )
-    if geom_type[gi] == GeomType.BOX:
+    elif gtype == GeomType.BOX:
       h, d, n = ray_box_with_normal(
-        geom_xpos[world_id, gi],
-        geom_xmat[world_id, gi],
-        geom_size[world_id, gi],
+        pos,
+        xmat,
+        size,
         ray_origin_world,
         ray_dir_world,
       )
-    if geom_type[gi] == GeomType.MESH:
+    elif gtype == GeomType.MESH:
       h, d, n, u, v, f, geom_mesh_id = ray_mesh_with_bvh(
         mesh_bvh_ids,
         geom_dataid[gi],
-        geom_xpos[world_id, gi],
-        geom_xmat[world_id, gi],
+        pos,
+        xmat,
         ray_origin_world,
         ray_dir_world,
         dist,
+        mesh_bounds_size,
       )
+    else:
+      h = False
 
     if h and d < dist:
       dist = d
@@ -484,8 +498,8 @@ def compute_lighting(
     if light_type == 0: # spot light
       spot_dir = wp.normalize(light_xdir)
       cos_theta = wp.dot(-L, spot_dir)
-      inner = 0.95
-      outer = 0.85
+      inner = SPOT_INNER_COS
+      outer = SPOT_OUTER_COS
       spot_factor = wp.min(1.0, wp.max(0.0, (cos_theta - outer) / (inner - outer)))
       attenuation = attenuation * spot_factor
 
@@ -505,23 +519,25 @@ def compute_lighting(
     max_t = wp.float32(dist_to_light - 1.0e-3)
     if light_type == 1:  # directional light
       max_t = wp.float32(1.0e+8)
-
-    shadow_hit = cast_ray_first_hit(
-      bvh_id,
-      group_root,
-      world_id,
-      bvh_ngeom,
-      enabled_geom_ids,
-      geom_type,
-      geom_dataid,
-      geom_size,
-      mesh_bvh_ids,
-      geom_xpos,
-      geom_xmat,
-      shadow_origin,
-      L,
-      max_t,
-    )
+    # Early-out: when at light position for point/spot, skip shadow cast
+    shadow_hit = False
+    if not (light_type != 1 and dist_to_light < 1.0e-6):
+      shadow_hit = cast_ray_first_hit(
+        bvh_id,
+        group_root,
+        world_id,
+        bvh_ngeom,
+        enabled_geom_ids,
+        geom_type,
+        geom_dataid,
+        geom_size,
+        mesh_bvh_ids,
+        geom_xpos,
+        geom_xmat,
+        shadow_origin,
+        L,
+        max_t,
+      )
 
     if shadow_hit:
       visible = shadow_min_visibility
@@ -557,6 +573,7 @@ def render_megakernel(m: Model, d: Data, rc: RenderContext):
     fov_rad: float,
     cam_xpos: wp.array2d(dtype=wp.vec3),
     cam_xmat: wp.array2d(dtype=wp.mat33),
+    rays_cam: wp.array(dtype=wp.vec3),
 
     # BVH
     bvh_id: wp.uint64,
@@ -570,6 +587,7 @@ def render_megakernel(m: Model, d: Data, rc: RenderContext):
     geom_size: wp.array2d(dtype=wp.vec3),
     geom_rgba: wp.array2d(dtype=wp.vec4),
     mesh_bvh_ids: wp.array(dtype=wp.uint64),
+    mesh_bounds_size: wp.array(dtype=wp.vec3),
     mesh_faceadr: wp.array(dtype=int),
     mesh_face: wp.array(dtype=wp.vec3i),
     mesh_texcoord: wp.array(dtype=wp.vec2),
@@ -630,15 +648,10 @@ def render_megakernel(m: Model, d: Data, rc: RenderContext):
       world_idx = view // ncam
       cam_idx = view % ncam
 
-      ray_dir_world, ray_origin_world = compute_camera_ray(
-        img_width,
-        img_height,
-        fov_rad,
-        px,
-        py,
-        cam_xpos[world_idx, cam_idx],
-        cam_xmat[world_idx, cam_idx],
-      )
+      # Use precomputed camera-space rays
+      ray_dir_local_cam = rays_cam[mapped_idx]
+      ray_dir_world = cam_xmat[world_idx, cam_idx] @ ray_dir_local_cam
+      ray_origin_world = cam_xpos[world_idx, cam_idx]
 
       geom_id, dist, normal, u, v, f, mesh_id = cast_ray(
         bvh_id,
@@ -650,6 +663,7 @@ def render_megakernel(m: Model, d: Data, rc: RenderContext):
         geom_dataid,
         geom_size,
         mesh_bvh_ids,
+        mesh_bounds_size,
         geom_xpos,
         geom_xmat,
         ray_origin_world,
@@ -778,6 +792,7 @@ def render_megakernel(m: Model, d: Data, rc: RenderContext):
       rc.fov_rad,
       d.cam_xpos,
       d.cam_xmat,
+      rc.rays_cam,
 
       # BVH
       rc.bvh_id,
@@ -791,6 +806,7 @@ def render_megakernel(m: Model, d: Data, rc: RenderContext):
       m.geom_size,
       m.geom_rgba,
       rc.mesh_bvh_ids,
+      rc.mesh_bounds_size,
       m.mesh_faceadr,
       m.mesh_face,
       rc.mesh_texcoord,

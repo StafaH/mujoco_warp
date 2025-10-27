@@ -14,6 +14,23 @@ from . import render
 
 _RENDER_CONTEXT_BUFFERS = {}
 
+@wp.kernel
+def build_primary_rays(img_w: int, img_h: int, fov_rad: float, rays_cam: wp.array(dtype=wp.vec3)):
+  tid = wp.tid()
+  total = img_w * img_h
+  if tid >= total:
+    return
+  px = tid % img_w
+  py = tid // img_w
+  aspect_ratio = float(img_w) / float(img_h)
+  u = (float(px) + 0.5) / float(img_w) - 0.5
+  v = (float(py) + 0.5) / float(img_h) - 0.5
+  h = wp.tan(fov_rad / 2.0)
+  dx = u * 2.0 * h
+  dy = -v * 2.0 * h / aspect_ratio
+  dz = -1.0
+  rays_cam[tid] = wp.normalize(wp.vec3(dx, dy, dz))
+
 
 def create_render_context(
   mjm: mujoco.MjModel,
@@ -176,6 +193,7 @@ class RenderContext:
   group_roots: wp.array(dtype=wp.int32)
   pixels: wp.array3d(dtype=wp.uint32)
   depth: wp.array3d(dtype=wp.float32)
+  rays_cam: wp.array(dtype=wp.vec3)
 
   def __init__(
     self,
@@ -281,6 +299,14 @@ class RenderContext:
     self.group_roots = wp.zeros((nworld,), dtype=wp.int32)
     self.pixels = wp.zeros((nworld, mjm.ncam, width * height), dtype=wp.uint32)
     self.depth = wp.zeros((nworld, mjm.ncam, width * height), dtype=wp.float32)
+    # Precomputed primary rays in camera space (per-pixel, shared across worlds/cams)
+    self.rays_cam = wp.zeros((width * height), dtype=wp.vec3)
+
+    wp.launch(
+      kernel=build_primary_rays,
+      dim=(width * height),
+      inputs=[width, height, fov_rad, self.rays_cam],
+    )
     
     self.bvh = None
     self.bvh_id = None
