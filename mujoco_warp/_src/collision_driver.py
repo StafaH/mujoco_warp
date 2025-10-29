@@ -387,11 +387,15 @@ def _sap_range(
 
   upper = sap_projection_upper_in[worldid, idx]
 
+  # Find first index with lower > current upper (exclusive upper bound)
   limit = _binary_search(sap_projection_lower_in[worldid], upper, geomid + 1, ngeom)
-  limit = wp.min(ngeom - 1, limit)
+
+  # Number of candidates is indices (geomid+1 .. limit-1)
+  count = limit - (geomid + 1)
+  count = wp.max(0, count)
 
   # range of geoms for the sweep and prune process
-  sap_range_out[worldid, geomid] = limit - geomid
+  sap_range_out[worldid, geomid] = count
 
 
 @cache_kernel
