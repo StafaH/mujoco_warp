@@ -1436,6 +1436,9 @@ class Model:
   taxel_sensorid: wp.array(dtype=int)
   qM_tiles: tuple[TileSet, ...]
   qLD_updates: tuple[wp.array(dtype=wp.vec3i), ...]
+  qLD_row_i: tuple[wp.array(dtype=int), ...]
+  qLD_row_adr: tuple[wp.array(dtype=int), ...]
+  qLD_row_update_idx: tuple[wp.array(dtype=int), ...]
   qM_fullm_i: wp.array(dtype=int)
   qM_fullm_j: wp.array(dtype=int)
   qM_mulm_i: wp.array(dtype=int)

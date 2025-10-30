@@ -913,13 +913,83 @@ def _qLDiag_div(
   D_out[worldid, dofid] = 1.0 / L_in[worldid, 0, diag_i]
 
 
+@wp.kernel
+def _qLD_acc_rows_tiled(
+  # Model:
+  M_rownnz_in: wp.array(dtype=int),
+  M_rowadr_in: wp.array(dtype=int),
+  # In (level data):
+  qLD_updates_in: wp.array(dtype=wp.vec3i),
+  row_i_in: wp.array(dtype=int),
+  row_adr_in: wp.array(dtype=int),
+  row_idx_in: wp.array(dtype=int),
+  L_in_in: wp.array3d(dtype=float),
+  # Out:
+  L_out_out: wp.array3d(dtype=float),
+):
+  worldid, rid = wp.tid()
+  i = row_i_in[rid]
+  Madr_i = M_rowadr_in[i]
+  nnz = M_rownnz_in[i]
+
+  start = row_adr_in[rid]
+  end = row_adr_in[rid + 1]
+
+  # tile size constant (compile-time)
+  TS = int(16)
+
+  for p in range(start, end):
+    nodeid = row_idx_in[p]
+    update = qLD_updates_in[nodeid]
+    k = update[1]
+    Madr_ki = update[2]
+    diag_k = M_rowadr_in[k] + M_rownnz_in[k] - 1
+    tmp = L_out_out[worldid, 0, Madr_ki] / L_out_out[worldid, 0, diag_k]
+
+    # process full tiles
+    tiles_end = (nnz // TS) * TS
+    base = int(0)
+    while base < tiles_end:
+      for jj in range(TS):
+        dst_idx = Madr_i + base + jj
+        src_idx = M_rowadr_in[k] + base + jj
+        dst_val = L_out_out[worldid, 0, dst_idx]
+        src_val = L_in_in[worldid, 0, src_idx]
+        L_out_out[worldid, 0, dst_idx] = dst_val - src_val * tmp
+      base += TS
+
+    for j in range(tiles_end, nnz):
+      dst_idx = Madr_i + j
+      src_idx = M_rowadr_in[k] + j
+      dst_val = L_out_out[worldid, 0, dst_idx]
+      src_val = L_in_in[worldid, 0, src_idx]
+      L_out_out[worldid, 0, dst_idx] = dst_val - src_val * tmp
+
+    L_out_out[worldid, 0, Madr_ki] = tmp
+
+
 def _factor_i_sparse(m: Model, d: Data, M: wp.array3d(dtype=float), L: wp.array3d(dtype=float), D: wp.array2d(dtype=float)):
   """Sparse L'*D*L factorization of inertia-like matrix M, assumed spd."""
   wp.launch(_copy_CSR, dim=(d.nworld, m.nC), inputs=[m.mapM2M, M], outputs=[L])
 
-  for i in reversed(range(len(m.qLD_updates))):
-    qLD_updates = m.qLD_updates[i]
-    wp.launch(_qLD_acc, dim=(d.nworld, qLD_updates.size), inputs=[m.M_rownnz, m.M_rowadr, qLD_updates, L], outputs=[L])
+  # Per-row tiled accumulation: process rows within each level
+  for level in reversed(range(len(m.qLD_updates))):
+    row_i = m.qLD_row_i[level]
+    if row_i.size:
+      wp.launch(
+        _qLD_acc_rows_tiled,
+        dim=(d.nworld, row_i.size),
+        inputs=[
+          m.M_rownnz,
+          m.M_rowadr,
+          m.qLD_updates[level],
+          row_i,
+          m.qLD_row_adr[level],
+          m.qLD_row_update_idx[level],
+          L,
+        ],
+        outputs=[L],
+      )
 
   wp.launch(_qLDiag_div, dim=(d.nworld, m.nv), inputs=[m.M_rownnz, m.M_rowadr, L], outputs=[D])
 

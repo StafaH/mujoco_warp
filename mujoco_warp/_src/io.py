@@ -170,7 +170,36 @@ def put_model(mjm: mujoco.MjModel) -> types.Model:
       i = mjm.dof_parentid[i]
       Madr_ki -= 1
 
-  qLD_updates = tuple(wp.array(qLD_updates[i], dtype=wp.vec3i) for i in sorted(qLD_updates))
+  level_keys = sorted(qLD_updates)
+  qLD_updates_np = [np.array(qLD_updates[k], dtype=np.int32) if len(qLD_updates[k]) else np.zeros((0, 3), np.int32) for k in level_keys]
+  qLD_updates = tuple(wp.array(arr, dtype=wp.vec3i) for arr in qLD_updates_np)
+
+  # Build per-level row-group data for per-row tiled kernels
+  qLD_row_i_list = []
+  qLD_row_adr_list = []
+  qLD_row_update_idx_list = []
+
+  for arr in qLD_updates_np:
+    if arr.shape[0] == 0:
+      qLD_row_i_list.append(wp.array(np.zeros((0,), dtype=np.int32), dtype=int))
+      qLD_row_adr_list.append(wp.array(np.zeros((1,), dtype=np.int32), dtype=int))
+      qLD_row_update_idx_list.append(wp.array(np.zeros((0,), dtype=np.int32), dtype=int))
+      continue
+
+    rows = arr[:, 0]
+    order = np.argsort(rows, kind="stable")
+    sorted_rows = rows[order]
+    unique_rows, first_idx, counts = np.unique(sorted_rows, return_index=True, return_counts=True)
+    row_adr = np.zeros((unique_rows.shape[0] + 1,), dtype=np.int32)
+    row_adr[1:] = np.cumsum(counts, dtype=np.int32)
+
+    qLD_row_i_list.append(wp.array(unique_rows.astype(np.int32), dtype=int))
+    qLD_row_adr_list.append(wp.array(row_adr, dtype=int))
+    qLD_row_update_idx_list.append(wp.array(order.astype(np.int32), dtype=int))
+
+  qLD_row_i = tuple(qLD_row_i_list)
+  qLD_row_adr = tuple(qLD_row_adr_list)
+  qLD_row_update_idx = tuple(qLD_row_update_idx_list)
 
   # qM_tiles records the block diagonal structure of qM
   tile_corners = [i for i in range(mjm.nv) if mjm.dof_parentid[i] == -1]
@@ -925,6 +954,9 @@ def put_model(mjm: mujoco.MjModel) -> types.Model:
     ),
     qM_tiles=qM_tiles,
     qLD_updates=qLD_updates,
+    qLD_row_i=qLD_row_i,
+    qLD_row_adr=qLD_row_adr,
+    qLD_row_update_idx=qLD_row_update_idx,
     qM_fullm_i=wp.array(qM_fullm_i, dtype=int),
     qM_fullm_j=wp.array(qM_fullm_j, dtype=int),
     qM_mulm_i=wp.array(qM_mulm_i, dtype=int),
