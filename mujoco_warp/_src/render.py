@@ -525,8 +525,47 @@ def compute_lighting(
 
 @event_scope
 def render_megakernel(m: Model, d: Data, rc: RenderContext):
-  rc.rgb_data.fill_(wp.uint32(BACKGROUND_COLOR))
-  rc.depth_data.fill_(float(0.0))
+  # Only clear buffers for cameras that are being rendered
+  # to preserve cached data for cameras not being updated
+  @wp.kernel
+  def clear_render_buffers(
+    render_rgb: wp.array(dtype=bool),
+    render_depth: wp.array(dtype=bool),
+    rgb_adr: wp.array(dtype=int),
+    depth_adr: wp.array(dtype=int),
+    rgb_size: wp.array(dtype=int),
+    depth_size: wp.array(dtype=int),
+    rgb_data: wp.array2d(dtype=wp.uint32),
+    depth_data: wp.array2d(dtype=wp.float32),
+  ):
+    world_idx, cam_idx = wp.tid()
+
+    if render_rgb[cam_idx]:
+      start = rgb_adr[cam_idx]
+      size = rgb_size[cam_idx]
+      for i in range(size):
+        rgb_data[world_idx, start + i] = wp.uint32(BACKGROUND_COLOR)
+
+    if render_depth[cam_idx]:
+      start = depth_adr[cam_idx]
+      size = depth_size[cam_idx]
+      for i in range(size):
+        depth_data[world_idx, start + i] = float(0.0)
+
+  wp.launch(
+    clear_render_buffers,
+    dim=(rc.rgb_data.shape[0], rc.render_rgb.shape[0]),
+    inputs=[
+      rc.render_rgb,
+      rc.render_depth,
+      rc.rgb_adr,
+      rc.depth_adr,
+      rc.rgb_size,
+      rc.depth_size,
+      rc.rgb_data,
+      rc.depth_data,
+    ],
+  )
 
   @nested_kernel(enable_backward="False")
   def _render_megakernel(
