@@ -35,11 +35,11 @@ from PIL import Image
 import mujoco_warp as mjw
 from mujoco_warp._src.io import override_model
 
-_NWORLD = flags.DEFINE_integer("nworld", 1, "number of parallel worlds")
-_WORLD = flags.DEFINE_integer("world", 0, "world index to save from")
+_NWORLD = flags.DEFINE_integer("nworld", 16, "number of parallel worlds")
+_WORLD = flags.DEFINE_integer("world", 3, "world index to save from")
 _CAM = flags.DEFINE_integer("cam", 0, "camera index to render")
-_WIDTH = flags.DEFINE_integer("width", 512, "render width (pixels)")
-_HEIGHT = flags.DEFINE_integer("height", 512, "render height (pixels)")
+_WIDTH = flags.DEFINE_integer("width", 64, "render width (pixels)")
+_HEIGHT = flags.DEFINE_integer("height", 64, "render height (pixels)")
 _RENDER_RGB = flags.DEFINE_bool("rgb", True, "render RGB image")
 _RENDER_DEPTH = flags.DEFINE_bool("depth", True, "render depth image")
 _USE_TEXTURES = flags.DEFINE_bool("textures", True, "use textures")

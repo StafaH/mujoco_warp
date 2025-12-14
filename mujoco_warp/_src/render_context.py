@@ -102,6 +102,8 @@ class RenderContext:
   rgb_adr: wp.array(dtype=int)
   depth_adr: wp.array(dtype=int)
 
+  total_tiles: int
+
   def __init__(
     self,
     mjm: mujoco.MjModel,
@@ -234,7 +236,7 @@ class RenderContext:
     di = 0
     total = 0
 
-    for idx in range(ncam):
+    for idx in active_cam_indices:
       if render_rgb[idx]:
         rgb_adr[idx] = ri
         ri += cam_res[idx][0] * cam_res[idx][1]
@@ -245,6 +247,17 @@ class RenderContext:
         depth_size[idx] = cam_res[idx][0] * cam_res[idx][1]
 
       total += cam_res[idx][0] * cam_res[idx][1]
+    
+    TILE_W = 16
+    TILE_H = 16
+    total_tiles = 0
+    for idx in active_cam_indices:
+      w = int(cam_res[idx][0])
+      h = int(cam_res[idx][1])
+      tiles_x = (w + TILE_W - 1) // TILE_W
+      tiles_y = (h + TILE_H - 1) // TILE_H
+      total_tiles += tiles_x * tiles_y
+    self.total_tiles = int(total_tiles)
 
     self.rgb_adr = wp.array(rgb_adr, dtype=int)
     self.depth_adr = wp.array(depth_adr, dtype=int)
