@@ -36,7 +36,9 @@ def _camera_frustum_bounds(
   znear: float,
 ) -> tuple[float, float, float, float, bool]:
   """Replicate MuJoCo's frustum computation to derive near-plane bounds."""
-  orthographic = bool(mjm.cam_orthographic[cam_id])
+  # mjm.cam_projection[cam_id] is an mjtProjection enum. If orthographic, primary rays
+  # should be constant (parallel); if perspective, they must vary per pixel.
+  orthographic = mjm.cam_projection[cam_id] != mujoco.mjtProjection.mjPROJ_PERSPECTIVE
   if orthographic:
     half_height = mjm.cam_fovy[cam_id] * 0.5
     aspect = img_w / img_h
@@ -66,6 +68,7 @@ class RenderContext:
   ncam: int
   cam_res: wp.array(dtype=wp.vec2i)
   cam_id_map: wp.array(dtype=int)
+  cam_ray_adr: wp.array(dtype=int)
   use_textures: bool
   use_shadows: bool
   geom_count: int
@@ -103,6 +106,10 @@ class RenderContext:
   depth_adr: wp.array(dtype=int)
 
   total_tiles: int
+  tile_cam_idx: wp.array(dtype=int)
+  tile_cam_id: wp.array(dtype=int)
+  tile_top_left: wp.array(dtype=wp.vec2i)
+  tile_bottom_right: wp.array(dtype=wp.vec2i)
 
   def __init__(
     self,
@@ -236,28 +243,53 @@ class RenderContext:
     di = 0
     total = 0
 
-    for idx in active_cam_indices:
-      if render_rgb[idx]:
-        rgb_adr[idx] = ri
-        ri += cam_res[idx][0] * cam_res[idx][1]
-        rgb_size[idx] = cam_res[idx][0] * cam_res[idx][1]
-      if render_depth[idx]:
-        depth_adr[idx] = di
-        di += cam_res[idx][0] * cam_res[idx][1]
-        depth_size[idx] = cam_res[idx][0] * cam_res[idx][1]
+    cam_ray_adr = np.zeros(ncam, dtype=int)
+    for cam_idx, _cam_id in enumerate(active_cam_indices):
+      w = int(cam_res[cam_idx][0])
+      h = int(cam_res[cam_idx][1])
 
-      total += cam_res[idx][0] * cam_res[idx][1]
+      cam_ray_adr[cam_idx] = total
+
+      if render_rgb[cam_idx]:
+        rgb_adr[cam_idx] = ri
+        ri += w * h
+        rgb_size[cam_idx] = w * h
+      if render_depth[cam_idx]:
+        depth_adr[cam_idx] = di
+        di += w * h
+        depth_size[cam_idx] = w * h
+
+      total += w * h
     
     TILE_W = 16
     TILE_H = 16
-    total_tiles = 0
-    for idx in active_cam_indices:
-      w = int(cam_res[idx][0])
-      h = int(cam_res[idx][1])
+    tile_cam_idx = []
+    tile_cam_id = []
+    tile_tl = []
+    tile_br = []
+
+    for cam_idx, cam_id in enumerate(active_cam_indices):
+      w = int(cam_res[cam_idx][0])
+      h = int(cam_res[cam_idx][1])
       tiles_x = (w + TILE_W - 1) // TILE_W
       tiles_y = (h + TILE_H - 1) // TILE_H
-      total_tiles += tiles_x * tiles_y
-    self.total_tiles = int(total_tiles)
+      for ty in range(tiles_y):
+        for tx in range(tiles_x):
+          px0 = tx * TILE_W
+          py0 = ty * TILE_H
+          px1 = min(px0 + TILE_W - 1, w - 1)
+          py1 = min(py0 + TILE_H - 1, h - 1)
+          tile_cam_idx.append(cam_idx)
+          tile_cam_id.append(int(cam_id))
+          tile_tl.append((int(px0), int(py0)))
+          tile_br.append((int(px1), int(py1)))
+
+    self.total_tiles = int(len(tile_cam_idx))
+    self.tile_cam_idx = wp.array(tile_cam_idx, dtype=int)
+    self.tile_cam_id = wp.array(tile_cam_id, dtype=int)
+    self.tile_top_left = wp.array(tile_tl, dtype=wp.vec2i)
+    self.tile_bottom_right = wp.array(tile_br, dtype=wp.vec2i)
+    self.cam_ray_adr = wp.array(cam_ray_adr, dtype=int)
 
     self.rgb_adr = wp.array(rgb_adr, dtype=int)
     self.depth_adr = wp.array(depth_adr, dtype=int)
