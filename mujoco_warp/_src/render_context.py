@@ -76,6 +76,7 @@ class RenderContext:
   mesh_texcoord: wp.array(dtype=wp.vec2)
   mesh_texcoord_offsets: wp.array(dtype=int)
   mesh_texcoord_num: wp.array(dtype=int)
+  tex_ids: wp.array(dtype=wp.uint64)
   tex_adr: wp.array(dtype=int)
   tex_data: wp.array(dtype=wp.uint32)
   tex_height: wp.array(dtype=int)
@@ -194,6 +195,27 @@ class RenderContext:
       self.flex_render_smooth = flex_render_smooth
 
     tex_data_packed, tex_adr_packed = _create_packed_texture_data(mjm)
+
+    # Textures
+    tex_ids = [wp.uint64(0) for _ in range(mjm.ntex)]
+    self.texture_registry = {}
+
+    for i in range(mjm.ntex):
+        w, h = mjm.tex_width[i], mjm.tex_height[i]
+        start = mjm.tex_adr[i]
+        end = start + (h * w * mjm.tex_nchannel[i])
+
+        rgb = mjm.tex_data[start:end]
+        # add 255 every third element to create 4 channel rgba texture
+        rgb = np.insert(
+          rgb, np.arange(3, rgb.shape[0] + 1, 3), 255, axis=0)
+
+        rgb_wp = wp.array(rgb, dtype=wp.uint8)
+        tex = wp.Texture(rgb_wp, w, h, channels=4)
+        self.texture_registry[tex.id] = tex
+        tex_ids[i] = tex.id
+    
+    self.tex_ids = wp.array(tex_ids, dtype=wp.uint64)
 
     # Filter active cameras based on cam_active parameter.
     if cam_active is not None:
