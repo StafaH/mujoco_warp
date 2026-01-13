@@ -24,6 +24,7 @@ except metadata.PackageNotFoundError:
 
 # isort: off
 from ._src.forward import step as step
+from ._src.render import render as render
 from ._src.types import Model as Model
 from ._src.types import Data as Data
 # isort: on
@@ -54,6 +55,7 @@ from ._src.io import reset_data as reset_data
 from ._src.passive import passive as passive
 from ._src.ray import ray as ray
 from ._src.ray import rays as rays
+from ._src.render_context import create_render_context as create_render_context
 from ._src.sensor import energy_pos as energy_pos
 from ._src.sensor import energy_vel as energy_vel
 from ._src.sensor import sensor_acc as sensor_acc

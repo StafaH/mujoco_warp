@@ -184,7 +184,7 @@ def _ray_triangle(
 
 
 @wp.func
-def _ray_plane(pos: wp.vec3, quat: wp.quat, size: wp.vec3, pnt: wp.vec3, vec: wp.vec3) -> Tuple[float, wp.vec3]:
+def ray_plane(pos: wp.vec3, quat: wp.quat, size: wp.vec3, pnt: wp.vec3, vec: wp.vec3) -> Tuple[float, wp.vec3]:
   """Returns the distance and normal at which a ray intersects with a plane."""
   # map to local frame
   lpnt, lvec = _ray_map(pos, quat, pnt, vec)
@@ -208,7 +208,7 @@ def _ray_plane(pos: wp.vec3, quat: wp.quat, size: wp.vec3, pnt: wp.vec3, vec: wp
 
 
 @wp.func
-def _ray_sphere(pos: wp.vec3, dist_sqr: float, pnt: wp.vec3, vec: wp.vec3) -> Tuple[float, wp.vec3]:
+def ray_sphere(pos: wp.vec3, dist_sqr: float, pnt: wp.vec3, vec: wp.vec3) -> Tuple[float, wp.vec3]:
   """Returns the distance and normal at which a ray intersects with a sphere."""
   dif = pnt - pos
 
@@ -225,11 +225,11 @@ def _ray_sphere(pos: wp.vec3, dist_sqr: float, pnt: wp.vec3, vec: wp.vec3) -> Tu
 
 
 @wp.func
-def _ray_capsule(pos: wp.vec3, quat: wp.quat, size: wp.vec3, pnt: wp.vec3, vec: wp.vec3) -> Tuple[float, wp.vec3]:
-  """Returns the distance and normal at which a ray intersects with a capsule."""
+def ray_capsule(pos: wp.vec3, quat: wp.quat, size: wp.vec3, pnt: wp.vec3, vec: wp.vec3) -> Tuple[float, wp.vec3]:
+  """Returns the distance and normal and normal at which a ray intersects with a capsule."""
   # bounding sphere test
   ssz = size[0] + size[1]
-  dist_sphere, normal_sphere = _ray_sphere(pos, ssz * ssz, pnt, vec)
+  dist_sphere, normal_sphere = ray_sphere(pos, ssz * ssz, pnt, vec)
   if dist_sphere < 0:
     return -1.0, wp.vec3()
 
@@ -249,8 +249,9 @@ def _ray_capsule(pos: wp.vec3, quat: wp.quat, size: wp.vec3, pnt: wp.vec3, vec: 
   sol, xx = _ray_quad(a, b, c)
   part = 0  # -1: bottom, 0: cylinder, 1: top
 
-  # make sure round solution is between flat sides
-  if sol >= 0.0 and wp.abs(lpnt[2] + sol * vec[2]) <= size[1]:
+  # make sure round solution is between flat sides (must use local z component)
+  #TODO: We should add a test to catch this case.
+  if sol >= 0.0 and wp.abs(lpnt[2] + sol * lvec[2]) <= size[1]:
     if x < 0.0 or sol < x:
       x = sol
 
@@ -261,7 +262,7 @@ def _ray_capsule(pos: wp.vec3, quat: wp.quat, size: wp.vec3, pnt: wp.vec3, vec: 
   c = wp.dot(ldif, ldif) - sq_size0
   _, xx = _ray_quad(a, b, c)
 
-  # accept only top half of sphere
+  # accept only top half of sphere (use local z component)
   for i in range(2):
     if xx[i] >= 0.0 and lpnt[2] + xx[i] * lvec[2] >= size[1]:
       if x < 0.0 or xx[i] < x:
@@ -274,7 +275,7 @@ def _ray_capsule(pos: wp.vec3, quat: wp.quat, size: wp.vec3, pnt: wp.vec3, vec: 
   c = wp.dot(ldif, ldif) - sq_size0
   _, xx = _ray_quad(a, b, c)
 
-  # accept only bottom half of sphere
+  # accept only bottom half of sphere (use local z component)
   for i in range(2):
     if xx[i] >= 0.0 and lpnt[2] + xx[i] * lvec[2] <= -size[1]:
       if x < 0.0 or xx[i] < x:
@@ -298,7 +299,7 @@ def _ray_capsule(pos: wp.vec3, quat: wp.quat, size: wp.vec3, pnt: wp.vec3, vec: 
 
 
 @wp.func
-def _ray_ellipsoid(pos: wp.vec3, quat: wp.quat, size: wp.vec3, pnt: wp.vec3, vec: wp.vec3) -> Tuple[float, wp.vec3]:
+def ray_ellipsoid(pos: wp.vec3, quat: wp.quat, size: wp.vec3, pnt: wp.vec3, vec: wp.vec3) -> Tuple[float, wp.vec3]:
   """Returns the distance and normal at which a ray intersects with an ellipsoid."""
   # map to local frame
   lpnt, lvec = _ray_map(pos, quat, pnt, vec)
@@ -329,11 +330,11 @@ def _ray_ellipsoid(pos: wp.vec3, quat: wp.quat, size: wp.vec3, pnt: wp.vec3, vec
 
 
 @wp.func
-def _ray_cylinder(pos: wp.vec3, quat: wp.quat, size: wp.vec3, pnt: wp.vec3, vec: wp.vec3) -> Tuple[float, wp.vec3]:
-  """Returns the distance and normal at which a ray intersects with a cylinder."""
+def ray_cylinder(pos: wp.vec3, quat: wp.quat, size: wp.vec3, pnt: wp.vec3, vec: wp.vec3) -> Tuple[float, wp.vec3]:
+  """Returns the distance at which a ray intersects with a cylinder."""
   # bounding sphere test
   ssz = size[0] * size[0] + size[1] * size[1]
-  dist_sphere, normal_sphere = _ray_sphere(pos, ssz, pnt, vec)
+  dist_sphere, normal_sphere = ray_sphere(pos, ssz, pnt, vec)
   if dist_sphere < 0:
     return -1.0, wp.vec3()
 
@@ -393,15 +394,15 @@ _IFACE = wp.types.matrix((3, 2), dtype=int)(1, 2, 0, 2, 0, 1)
 
 
 @wp.func
-def _ray_box(pos: wp.vec3, quat: wp.quat, size: wp.vec3, pnt: wp.vec3, vec: wp.vec3) -> Tuple[float, vec6, wp.vec3]:
-  """Returns the distance, per side information, and normal at which a ray intersects with a box."""
+def ray_box(pos: wp.vec3, quat: wp.quat, size: wp.vec3, pnt: wp.vec3, vec: wp.vec3) -> Tuple[float, wp.vec3]:
+  """Returns the distance at which a ray intersects with a box."""
   all = vec6(-1.0, -1.0, -1.0, -1.0, -1.0, -1.0)
 
   # bounding sphere test
   ssz = wp.dot(size, size)
-  dist_sphere, _ = _ray_sphere(pos, ssz, pnt, vec)
+  dist_sphere, normal_sphere = ray_sphere(pos, ssz, pnt, vec)
   if dist_sphere < 0:
-    return -1.0, all, wp.vec3()
+    return wp.inf, all
 
   # map to local frame
   lpnt, lvec = _ray_map(pos, quat, pnt, vec)
@@ -447,7 +448,7 @@ def _ray_box(pos: wp.vec3, quat: wp.quat, size: wp.vec3, pnt: wp.vec3, vec: wp.v
 
 
 @wp.func
-def _ray_hfield(
+def ray_hfield(
   # Model:
   geom_type: wp.array(dtype=int),
   geom_dataid: wp.array(dtype=int),
@@ -480,7 +481,7 @@ def _ray_hfield(
   # compute size and pos of base box
   base_scale = size[3] * 0.5
   base_size = wp.vec3(size[0], size[1], base_scale)
-  base_pos = pos + mat_col * base_scale
+  base_pos = pos - mat_col * base_scale
 
   # compute size and pos of top box
   top_scale = size[2] * 0.5
@@ -488,10 +489,10 @@ def _ray_hfield(
   top_pos = pos + mat_col * top_scale
 
   # init: intersection with base box
-  x, _, normal_base = _ray_box(base_pos, quat, base_size, pnt, vec)
+  x, _, normal_base = ray_box(base_pos, quat, base_size, pnt, vec)
 
   # check top box: done if no intersection
-  top_intersect, all, normal_top = _ray_box(top_pos, quat, top_size, pnt, vec)
+  top_intersect, all, normal_top = ray_box(top_pos, quat, top_size, pnt, vec)
 
   if top_intersect < 0.0:
     return x, normal_base
@@ -689,25 +690,88 @@ def ray_mesh(
 
 
 @wp.func
-def ray_geom(pos: wp.vec3, quat: wp.quat, size: wp.vec3, pnt: wp.vec3, vec: wp.vec3, geomtype: int) -> Tuple[float, wp.vec3]:
+def ray_mesh_with_bvh(
+  # In:
+  mesh_bvh_id: wp.array(dtype=wp.uint64),
+  mesh_geom_id: int,
+  pos: wp.vec3,
+  mat: wp.mat33,
+  pnt: wp.vec3,
+  vec: wp.vec3,
+  max_t: float,
+) -> Tuple[float, wp.vec3, float, float, int, int]:
+  """Returns intersection information for ray mesh intersections.
+
+  Requires wp.Mesh be constructed and their ids to be passed.
+  """
+  t = float(-1.0)
+  u = float(0.0)
+  v = float(0.0)
+  sign = float(0.0)
+  n = wp.vec3(0.0, 0.0, 0.0)
+  f = int(-1)
+
+  lpnt, lvec = _ray_map(pos, mat, pnt, vec)
+  hit = wp.mesh_query_ray(
+    mesh_bvh_id[mesh_geom_id], lpnt, lvec, max_t, t, u, v, sign, n, f)
+
+  if hit and wp.dot(lvec, n) < 0.0: # Backface culling in local space
+    normal = mat @ n
+    normal = wp.normalize(normal)
+    return t, normal, u, v, f, 0
+
+  return -1.0, wp.vec3(0.0, 0.0, 0.0), 0.0, 0.0, -1, -1
+
+
+@wp.func
+def ray_flex_with_bvh(
+  # In:
+  bvh_id: wp.uint64,
+  group_root: int,
+  pnt: wp.vec3,
+  vec: wp.vec3,
+  max_t: float,
+) -> Tuple[float, wp.vec3, float, float, int, int]:
+  """Returns intersection information for flex intersections.
+
+  Requires wp.Mesh be constructed and their ids to be passed. Flex are already in world space.
+  """
+  t = float(-1.0)
+  u = float(0.0)
+  v = float(0.0)
+  sign = float(0.0)
+  n = wp.vec3(0.0, 0.0, 0.0)
+  f = int(-1)
+
+  hit = wp.mesh_query_ray(
+    bvh_id, pnt, vec, max_t, t, u, v, sign, n, f, group_root)
+
+  if hit:
+    return t, n, u, v, f
+
+  return -1.0, wp.vec3(0.0, 0.0, 0.0), 0.0, 0.0, -1, -1
+
+
+@wp.func
+def ray_geom(pos: wp.vec3, mat: wp.mat33, size: wp.vec3, pnt: wp.vec3, vec: wp.vec3, geomtype: int) -> Tuple[float, wp.vec3]:
   """Returns distance along ray to intersection with geom and normal at intersection point.
 
   If no intersection is found, returns -1 and zero vector.
   """
   # TODO(team): static loop unrolling to remove unnecessary branching
   if geomtype == GeomType.PLANE:
-    return _ray_plane(pos, quat, size, pnt, vec)
+    return ray_plane(pos, quat, size, pnt, vec)
   elif geomtype == GeomType.SPHERE:
-    return _ray_sphere(pos, size[0] * size[0], pnt, vec)
+    return ray_sphere(pos, size[0] * size[0], pnt, vec)
   elif geomtype == GeomType.CAPSULE:
-    return _ray_capsule(pos, quat, size, pnt, vec)
+    return ray_capsule(pos, quat, size, pnt, vec)
   elif geomtype == GeomType.ELLIPSOID:
-    return _ray_ellipsoid(pos, quat, size, pnt, vec)
+    return ray_ellipsoid(pos, quat, size, pnt, vec)
   elif geomtype == GeomType.CYLINDER:
-    return _ray_cylinder(pos, quat, size, pnt, vec)
+    return ray_cylinder(pos, quat, size, pnt, vec)
   elif geomtype == GeomType.BOX:
-    dist, _, normal = _ray_box(pos, quat, size, pnt, vec)
-    return dist, normal
+    dist, _, normal = ray_box(pos, quat, size, pnt, vec)
+    return dist
   else:
     return -1.0, wp.vec3()
 
@@ -776,7 +840,7 @@ def _ray_geom_mesh(
         vec,
       )
     elif type == GeomType.HFIELD:
-      return _ray_hfield(
+      return ray_hfield(
         geom_type,
         geom_dataid,
         hfield_size,
