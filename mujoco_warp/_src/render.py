@@ -19,6 +19,8 @@ import warp as wp
 
 from . import bvh
 from . import math
+from .math import quat_inv
+from .math import rot_vec_quat
 from .ray import ray_box
 from .ray import ray_capsule
 from .ray import ray_cylinder
@@ -135,14 +137,15 @@ def sample_texture_plane(
   # In:
   hit_point: wp.vec3,
   pos: wp.vec3,
-  rot: wp.mat33,
+  quat: wp.quat,
   tex_repeat: wp.vec2,
   tex_adr: int,
   tex_data: wp.array(dtype=wp.uint32),
   tex_height: int,
   tex_width: int,
 ) -> wp.vec3:
-  local = wp.transpose(rot) @ (hit_point - pos)
+  # Transform hit_point to local frame using inverse quaternion rotation
+  local = rot_vec_quat(hit_point - pos, quat_inv(quat))
   u = local[0] * tex_repeat[0]
   v = local[1] * tex_repeat[1]
   u = u - wp.floor(u)
@@ -204,7 +207,7 @@ def sample_texture(
   tex_height: int,
   tex_width: int,
   pos: wp.vec3,
-  rot: wp.mat33,
+  quat: wp.quat,
   mesh_texcoord: wp.array(dtype=wp.vec2),
   mesh_texcoord_offsets: wp.array(dtype=int),
   hit_point: wp.vec3,
@@ -219,7 +222,7 @@ def sample_texture(
     tex_color = sample_texture_plane(
       hit_point,
       pos,
-      rot,
+      quat,
       tex_repeat,
       tex_adr,
       tex_data,
@@ -258,7 +261,7 @@ def cast_ray(
   geom_size: wp.array2d(dtype=wp.vec3),
   # Data in:
   geom_xpos_in: wp.array2d(dtype=wp.vec3),
-  geom_xmat_in: wp.array2d(dtype=wp.mat33),
+  geom_xquat_in: wp.array2d(dtype=wp.quat),
   # In:
   bvh_id: wp.uint64,
   group_root: int,
@@ -290,7 +293,7 @@ def cast_ray(
     if geom_type[gi] == GeomType.PLANE:
       d, n = ray_plane(
         geom_xpos_in[world_id, gi],
-        geom_xmat_in[world_id, gi],
+        geom_xquat_in[world_id, gi],
         geom_size[world_id, gi],
         ray_origin_world,
         ray_dir_world,
@@ -300,7 +303,7 @@ def cast_ray(
         hfield_bvh_id,
         geom_dataid[gi],
         geom_xpos_in[world_id, gi],
-        geom_xmat_in[world_id, gi],
+        geom_xquat_in[world_id, gi],
         ray_origin_world,
         ray_dir_world,
         dist,
@@ -315,7 +318,7 @@ def cast_ray(
     if geom_type[gi] == GeomType.ELLIPSOID:
       d, n = ray_ellipsoid(
         geom_xpos_in[world_id, gi],
-        geom_xmat_in[world_id, gi],
+        geom_xquat_in[world_id, gi],
         geom_size[world_id, gi],
         ray_origin_world,
         ray_dir_world,
@@ -323,7 +326,7 @@ def cast_ray(
     if geom_type[gi] == GeomType.CAPSULE:
       d, n = ray_capsule(
         geom_xpos_in[world_id, gi],
-        geom_xmat_in[world_id, gi],
+        geom_xquat_in[world_id, gi],
         geom_size[world_id, gi],
         ray_origin_world,
         ray_dir_world,
@@ -331,7 +334,7 @@ def cast_ray(
     if geom_type[gi] == GeomType.CYLINDER:
       d, n = ray_cylinder(
         geom_xpos_in[world_id, gi],
-        geom_xmat_in[world_id, gi],
+        geom_xquat_in[world_id, gi],
         geom_size[world_id, gi],
         ray_origin_world,
         ray_dir_world,
@@ -339,7 +342,7 @@ def cast_ray(
     if geom_type[gi] == GeomType.BOX:
       d, all, n = ray_box(
         geom_xpos_in[world_id, gi],
-        geom_xmat_in[world_id, gi],
+        geom_xquat_in[world_id, gi],
         geom_size[world_id, gi],
         ray_origin_world,
         ray_dir_world,
@@ -349,7 +352,7 @@ def cast_ray(
         mesh_bvh_id,
         geom_dataid[gi],
         geom_xpos_in[world_id, gi],
-        geom_xmat_in[world_id, gi],
+        geom_xquat_in[world_id, gi],
         ray_origin_world,
         ray_dir_world,
         dist,
@@ -374,7 +377,7 @@ def cast_ray_first_hit(
   geom_size: wp.array2d(dtype=wp.vec3),
   # Data in:
   geom_xpos_in: wp.array2d(dtype=wp.vec3),
-  geom_xmat_in: wp.array2d(dtype=wp.mat33),
+  geom_xquat_in: wp.array2d(dtype=wp.quat),
   # In:
   bvh_id: wp.uint64,
   group_root: int,
@@ -400,7 +403,7 @@ def cast_ray_first_hit(
     if geom_type[gi] == GeomType.PLANE:
       d, n = ray_plane(
         geom_xpos_in[world_id, gi],
-        geom_xmat_in[world_id, gi],
+        geom_xquat_in[world_id, gi],
         geom_size[world_id, gi],
         ray_origin_world,
         ray_dir_world,
@@ -410,7 +413,7 @@ def cast_ray_first_hit(
         hfield_bvh_id,
         geom_dataid[gi],
         geom_xpos_in[world_id, gi],
-        geom_xmat_in[world_id, gi],
+        geom_xquat_in[world_id, gi],
         ray_origin_world,
         ray_dir_world,
         max_dist,
@@ -425,7 +428,7 @@ def cast_ray_first_hit(
     if geom_type[gi] == GeomType.ELLIPSOID:
       d, n = ray_ellipsoid(
         geom_xpos_in[world_id, gi],
-        geom_xmat_in[world_id, gi],
+        geom_xquat_in[world_id, gi],
         geom_size[world_id, gi],
         ray_origin_world,
         ray_dir_world,
@@ -433,7 +436,7 @@ def cast_ray_first_hit(
     if geom_type[gi] == GeomType.CAPSULE:
       d, n = ray_capsule(
         geom_xpos_in[world_id, gi],
-        geom_xmat_in[world_id, gi],
+        geom_xquat_in[world_id, gi],
         geom_size[world_id, gi],
         ray_origin_world,
         ray_dir_world,
@@ -441,7 +444,7 @@ def cast_ray_first_hit(
     if geom_type[gi] == GeomType.CYLINDER:
       d, n = ray_cylinder(
         geom_xpos_in[world_id, gi],
-        geom_xmat_in[world_id, gi],
+        geom_xquat_in[world_id, gi],
         geom_size[world_id, gi],
         ray_origin_world,
         ray_dir_world,
@@ -449,7 +452,7 @@ def cast_ray_first_hit(
     if geom_type[gi] == GeomType.BOX:
       d, all, n = ray_box(
         geom_xpos_in[world_id, gi],
-        geom_xmat_in[world_id, gi],
+        geom_xquat_in[world_id, gi],
         geom_size[world_id, gi],
         ray_origin_world,
         ray_dir_world,
@@ -459,7 +462,7 @@ def cast_ray_first_hit(
         mesh_bvh_id,
         geom_dataid[gi],
         geom_xpos_in[world_id, gi],
-        geom_xmat_in[world_id, gi],
+        geom_xquat_in[world_id, gi],
         ray_origin_world,
         ray_dir_world,
         max_dist,
@@ -480,7 +483,7 @@ def compute_lighting(
 
   # Data in:
   geom_xpos_in: wp.array2d(dtype=wp.vec3),
-  geom_xmat_in: wp.array2d(dtype=wp.mat33),
+  geom_xquat_in: wp.array2d(dtype=wp.quat),
 
   # In:
   use_shadows: bool,
@@ -545,7 +548,7 @@ def compute_lighting(
       geom_dataid,
       geom_size,
       geom_xpos_in,
-      geom_xmat_in,
+      geom_xquat_in,
       bvh_id,
       group_root,
       world_id,
@@ -594,7 +597,7 @@ def render_megakernel(m: Model, d: Data, rc: RenderContext):
     light_xpos: wp.array2d(dtype=wp.vec3),
     light_xdir: wp.array2d(dtype=wp.vec3),
     geom_xpos: wp.array2d(dtype=wp.vec3),
-    geom_xmat: wp.array2d(dtype=wp.mat33),
+    geom_xquat: wp.array2d(dtype=wp.quat),
 
     # In:
     ncam: int,
@@ -657,7 +660,7 @@ def render_megakernel(m: Model, d: Data, rc: RenderContext):
       geom_dataid,
       geom_size,
       geom_xpos,
-      geom_xmat,
+      geom_xquat,
       bvh_id,
       group_root[world_idx],
       world_idx,
@@ -724,7 +727,7 @@ def render_megakernel(m: Model, d: Data, rc: RenderContext):
               tex_height[tex_id],
               tex_width[tex_id],
               geom_xpos[world_idx, geom_id],
-              geom_xmat[world_idx, geom_id],
+              geom_xquat[world_idx, geom_id],
               mesh_texcoord,
               mesh_texcoord_offsets,
               hit_point,
@@ -749,7 +752,7 @@ def render_megakernel(m: Model, d: Data, rc: RenderContext):
         geom_dataid,
         geom_size,
         geom_xpos,
-        geom_xmat,
+        geom_xquat,
         use_shadows,
         bvh_id,
         group_root[world_idx],
@@ -800,7 +803,7 @@ def render_megakernel(m: Model, d: Data, rc: RenderContext):
       d.light_xpos,
       d.light_xdir,
       d.geom_xpos,
-      d.geom_xmat,
+      d.geom_xquat,
       rc.ncam,
       rc.use_shadows,
       rc.bvh_ngeom,

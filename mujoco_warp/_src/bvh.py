@@ -17,6 +17,8 @@ from typing import Tuple
 
 import warp as wp
 
+from .math import quat_to_mat
+from .math import rot_vec_quat
 from .render_context import RenderContext
 from .types import Data
 from .types import GeomType
@@ -29,7 +31,7 @@ wp.set_module_options({"enable_backward": False})
 def _compute_box_bounds(
   # In:
   pos: wp.vec3,
-  rot: wp.mat33,
+  quat: wp.quat,
   size: wp.vec3,
 ) -> Tuple[wp.vec3, wp.vec3]:
   min_bound = wp.vec3(wp.inf, wp.inf, wp.inf)
@@ -43,7 +45,7 @@ def _compute_box_bounds(
           size[1] * (2.0 * float(j) - 1.0),
           size[2] * (2.0 * float(k) - 1.0),
         )
-        world_corner = pos + rot @ local_corner
+        world_corner = pos + rot_vec_quat(local_corner, quat)
         min_bound = wp.min(min_bound, world_corner)
         max_bound = wp.max(max_bound, world_corner)
 
@@ -54,7 +56,7 @@ def _compute_box_bounds(
 def _compute_sphere_bounds(
   # In:
   pos: wp.vec3,
-  rot: wp.mat33,
+  quat: wp.quat,
   size: wp.vec3,
 ) -> Tuple[wp.vec3, wp.vec3]:
   radius = size[0]
@@ -65,15 +67,15 @@ def _compute_sphere_bounds(
 def _compute_capsule_bounds(
   # In:
   pos: wp.vec3,
-  rot: wp.mat33,
+  quat: wp.quat,
   size: wp.vec3,
 ) -> Tuple[wp.vec3, wp.vec3]:
   radius = size[0]
   half_length = size[1]
   local_end1 = wp.vec3(0.0, 0.0, -half_length)
   local_end2 = wp.vec3(0.0, 0.0, half_length)
-  world_end1 = pos + rot @ local_end1
-  world_end2 = pos + rot @ local_end2
+  world_end1 = pos + rot_vec_quat(local_end1, quat)
+  world_end2 = pos + rot_vec_quat(local_end2, quat)
 
   seg_min = wp.min(world_end1, world_end2)
   seg_max = wp.max(world_end1, world_end2)
@@ -86,7 +88,7 @@ def _compute_capsule_bounds(
 def _compute_plane_bounds(
   # In:
   pos: wp.vec3,
-  rot: wp.mat33,
+  quat: wp.quat,
   size: wp.vec3,
 ) -> Tuple[wp.vec3, wp.vec3]:
   # If plane size is non-positive, treat as infinite plane and use a large default extent
@@ -103,7 +105,7 @@ def _compute_plane_bounds(
         size_scale * (2.0 * float(j) - 1.0),
         0.0,
       )
-      world_corner = pos + rot @ local_corner
+      world_corner = pos + rot_vec_quat(local_corner, quat)
       min_bound = wp.min(min_bound, world_corner)
       max_bound = wp.max(max_bound, world_corner)
 
@@ -117,9 +119,11 @@ def _compute_plane_bounds(
 def _compute_ellipsoid_bounds(
   # In:
   pos: wp.vec3,
-  rot: wp.mat33,
+  quat: wp.quat,
   size: wp.vec3,
 ) -> Tuple[wp.vec3, wp.vec3]:
+  # Convert quaternion to rotation matrix for element access
+  rot = quat_to_mat(quat)
   # Half-extent along each world axis equals the norm of the corresponding row of rot*diag(size)
   row0 = wp.vec3(rot[0, 0] * size[0], rot[0, 1] * size[1], rot[0, 2] * size[2])
   row1 = wp.vec3(rot[1, 0] * size[0], rot[1, 1] * size[1], rot[1, 2] * size[2])
@@ -132,9 +136,11 @@ def _compute_ellipsoid_bounds(
 def _compute_cylinder_bounds(
   # In:
   pos: wp.vec3,
-  rot: wp.mat33,
+  quat: wp.quat,
   size: wp.vec3,
 ) -> Tuple[wp.vec3, wp.vec3]:
+  # Convert quaternion to rotation matrix for element access
+  rot = quat_to_mat(quat)
   radius = size[0]
   half_height = size[1]
 
@@ -163,10 +169,10 @@ def _compute_bvh_bounds(
   geom_type: wp.array(dtype=int),
   geom_dataid: wp.array(dtype=int),
   geom_size: wp.array2d(dtype=wp.vec3),
-  
+
   # Data in:
   geom_xpos_in: wp.array2d(dtype=wp.vec3),
-  geom_xmat_in: wp.array2d(dtype=wp.mat33),
+  geom_xquat_in: wp.array2d(dtype=wp.quat),
   nworld_in: int,
 
   # In:
@@ -174,7 +180,7 @@ def _compute_bvh_bounds(
   enabled_geom_ids: wp.array(dtype=int),
   mesh_bounds_size: wp.array(dtype=wp.vec3),
   hfield_bounds_size: wp.array(dtype=wp.vec3),
-  
+
   # Out:
   lower_out: wp.array(dtype=wp.vec3),
   upper_out: wp.array(dtype=wp.vec3),
@@ -190,29 +196,29 @@ def _compute_bvh_bounds(
   geom_id = enabled_geom_ids[bvh_geom_local]
 
   pos = geom_xpos_in[world_id, geom_id]
-  rot = geom_xmat_in[world_id, geom_id]
+  quat = geom_xquat_in[world_id, geom_id]
   size = geom_size[world_id, geom_id]
   type = geom_type[geom_id]
 
   # TODO: Investigate branch elimination with static loop unrolling
   if type == GeomType.SPHERE:
-    lower_bound, upper_bound = _compute_sphere_bounds(pos, rot, size)
+    lower_bound, upper_bound = _compute_sphere_bounds(pos, quat, size)
   elif type == GeomType.CAPSULE:
-    lower_bound, upper_bound = _compute_capsule_bounds(pos, rot, size)
+    lower_bound, upper_bound = _compute_capsule_bounds(pos, quat, size)
   elif type == GeomType.PLANE:
-    lower_bound, upper_bound = _compute_plane_bounds(pos, rot, size)
+    lower_bound, upper_bound = _compute_plane_bounds(pos, quat, size)
   elif type == GeomType.MESH:
     size = mesh_bounds_size[geom_dataid[geom_id]]
-    lower_bound, upper_bound = _compute_box_bounds(pos, rot, size)
+    lower_bound, upper_bound = _compute_box_bounds(pos, quat, size)
   elif type == GeomType.ELLIPSOID:
-    lower_bound, upper_bound = _compute_ellipsoid_bounds(pos, rot, size)
+    lower_bound, upper_bound = _compute_ellipsoid_bounds(pos, quat, size)
   elif type == GeomType.CYLINDER:
-    lower_bound, upper_bound = _compute_cylinder_bounds(pos, rot, size)
+    lower_bound, upper_bound = _compute_cylinder_bounds(pos, quat, size)
   elif type == GeomType.BOX:
-    lower_bound, upper_bound = _compute_box_bounds(pos, rot, size)
+    lower_bound, upper_bound = _compute_box_bounds(pos, quat, size)
   elif type == GeomType.HFIELD:
     size = hfield_bounds_size[geom_dataid[geom_id]]
-    lower_bound, upper_bound = _compute_box_bounds(pos, rot, size)
+    lower_bound, upper_bound = _compute_box_bounds(pos, quat, size)
 
   lower_out[world_id * bvh_ngeom + bvh_geom_local] = lower_bound
   upper_out[world_id * bvh_ngeom + bvh_geom_local] = upper_bound
@@ -241,7 +247,7 @@ def build_warp_bvh(m: Model, d: Data, rc: RenderContext):
       m.geom_dataid,
       m.geom_size,
       d.geom_xpos,
-      d.geom_xmat,
+      d.geom_xquat,
       d.nworld,
       rc.bvh_ngeom,
       rc.enabled_geom_ids,
@@ -276,7 +282,7 @@ def refit_warp_bvh(m: Model, d: Data, rc: RenderContext):
       m.geom_dataid,
       m.geom_size,
       d.geom_xpos,
-      d.geom_xmat,
+      d.geom_xquat,
       d.nworld,
       rc.bvh_ngeom,
       rc.enabled_geom_ids,

@@ -394,7 +394,7 @@ _IFACE = wp.types.matrix((3, 2), dtype=int)(1, 2, 0, 2, 0, 1)
 
 
 @wp.func
-def ray_box(pos: wp.vec3, quat: wp.quat, size: wp.vec3, pnt: wp.vec3, vec: wp.vec3) -> Tuple[float, wp.vec3]:
+def ray_box(pos: wp.vec3, quat: wp.quat, size: wp.vec3, pnt: wp.vec3, vec: wp.vec3) -> Tuple[float, vec6, wp.vec3]:
   """Returns the distance at which a ray intersects with a box."""
   all = vec6(-1.0, -1.0, -1.0, -1.0, -1.0, -1.0)
 
@@ -402,7 +402,7 @@ def ray_box(pos: wp.vec3, quat: wp.quat, size: wp.vec3, pnt: wp.vec3, vec: wp.ve
   ssz = wp.dot(size, size)
   dist_sphere, normal_sphere = ray_sphere(pos, ssz, pnt, vec)
   if dist_sphere < 0:
-    return wp.inf, all
+    return -1.0, all, wp.vec3()
 
   # map to local frame
   lpnt, lvec = _ray_map(pos, quat, pnt, vec)
@@ -695,7 +695,7 @@ def ray_mesh_with_bvh(
   mesh_bvh_id: wp.array(dtype=wp.uint64),
   mesh_geom_id: int,
   pos: wp.vec3,
-  mat: wp.mat33,
+  quat: wp.quat,
   pnt: wp.vec3,
   vec: wp.vec3,
   max_t: float,
@@ -711,12 +711,12 @@ def ray_mesh_with_bvh(
   n = wp.vec3(0.0, 0.0, 0.0)
   f = int(-1)
 
-  lpnt, lvec = _ray_map(pos, mat, pnt, vec)
+  lpnt, lvec = _ray_map(pos, quat, pnt, vec)
   hit = wp.mesh_query_ray(
     mesh_bvh_id[mesh_geom_id], lpnt, lvec, max_t, t, u, v, sign, n, f)
 
   if hit and wp.dot(lvec, n) < 0.0: # Backface culling in local space
-    normal = mat @ n
+    normal = rot_vec_quat(n, quat)
     normal = wp.normalize(normal)
     return t, normal, u, v, f, 0
 
@@ -753,7 +753,7 @@ def ray_flex_with_bvh(
 
 
 @wp.func
-def ray_geom(pos: wp.vec3, mat: wp.mat33, size: wp.vec3, pnt: wp.vec3, vec: wp.vec3, geomtype: int) -> Tuple[float, wp.vec3]:
+def ray_geom(pos: wp.vec3, quat: wp.quat, size: wp.vec3, pnt: wp.vec3, vec: wp.vec3, geomtype: int) -> Tuple[float, wp.vec3]:
   """Returns distance along ray to intersection with geom and normal at intersection point.
 
   If no intersection is found, returns -1 and zero vector.
@@ -771,7 +771,7 @@ def ray_geom(pos: wp.vec3, mat: wp.mat33, size: wp.vec3, pnt: wp.vec3, vec: wp.v
     return ray_cylinder(pos, quat, size, pnt, vec)
   elif geomtype == GeomType.BOX:
     dist, _, normal = ray_box(pos, quat, size, pnt, vec)
-    return dist
+    return dist, normal
   else:
     return -1.0, wp.vec3()
 
