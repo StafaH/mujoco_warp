@@ -841,6 +841,73 @@ def ray_geom(pos: wp.vec3, mat: wp.mat33, size: wp.vec3, pnt: wp.vec3, vec: wp.v
 
 
 @wp.func
+def intersect_primitive(
+  # In:
+  geom_id: int,
+  world_idx: int,
+  # Model:
+  geom_type: wp.array(dtype=int),
+  geom_dataid: wp.array(dtype=int),
+  geom_size: wp.array2d(dtype=wp.vec3),
+  # Data:
+  geom_xpos: wp.array2d(dtype=wp.vec3),
+  geom_xmat: wp.array2d(dtype=wp.mat33),
+  # BVH arrays for mesh/hfield:
+  mesh_bvh_id: wp.array(dtype=wp.uint64),
+  hfield_bvh_id: wp.array(dtype=wp.uint64),
+  # Ray:
+  ray_origin: wp.vec3,
+  ray_dir: wp.vec3,
+  max_dist: float,
+) -> Tuple[float, wp.vec3, float, float, int, int]:
+  """Intersect a ray with a single primitive (no BVH traversal).
+
+  Returns:
+    dist: Distance to intersection (wp.inf if no hit)
+    normal: Surface normal at hit point
+    u, v: Barycentric coordinates (for mesh/hfield)
+    face_idx: Face index (for mesh/hfield, -1 otherwise)
+    mesh_id: Mesh ID if applicable (-1 otherwise)
+  """
+  pos = geom_xpos[world_idx, geom_id]
+  mat = geom_xmat[world_idx, geom_id]
+  size = geom_size[world_idx, geom_id]
+  gtype = geom_type[geom_id]
+
+  dist = float(wp.inf)
+  normal = wp.vec3(0.0, 0.0, 0.0)
+  u = float(0.0)
+  v = float(0.0)
+  face_idx = int(-1)
+  mesh_id = int(-1)
+
+  if gtype == GeomType.PLANE:
+    hit, dist, normal = ray_plane_with_normal(pos, mat, size, ray_origin, ray_dir)
+  elif gtype == GeomType.SPHERE:
+    hit, dist, normal = ray_sphere_with_normal(pos, size[0] * size[0], ray_origin, ray_dir)
+  elif gtype == GeomType.CAPSULE:
+    hit, dist, normal = ray_capsule_with_normal(pos, mat, size, ray_origin, ray_dir)
+  elif gtype == GeomType.ELLIPSOID:
+    hit, dist, normal = ray_ellipsoid_with_normal(pos, mat, size, ray_origin, ray_dir)
+  elif gtype == GeomType.CYLINDER:
+    hit, dist, normal = ray_cylinder_with_normal(pos, mat, size, ray_origin, ray_dir)
+  elif gtype == GeomType.BOX:
+    hit, dist, normal = ray_box_with_normal(pos, mat, size, ray_origin, ray_dir)
+  elif gtype == GeomType.MESH:
+    data_id = geom_dataid[geom_id]
+    hit, dist, normal, u, v, face_idx, mesh_id = ray_mesh_with_bvh(
+      mesh_bvh_id, data_id, pos, mat, ray_origin, ray_dir, max_dist
+    )
+  elif gtype == GeomType.HFIELD:
+    data_id = geom_dataid[geom_id]
+    hit, dist, normal, u, v, face_idx, mesh_id = ray_mesh_with_bvh(
+      hfield_bvh_id, data_id, pos, mat, ray_origin, ray_dir, max_dist
+    )
+
+  return dist, normal, u, v, face_idx, mesh_id
+
+
+@wp.func
 def _ray_geom_mesh(
   # Model:
   nmeshface: int,

@@ -76,55 +76,61 @@ def _load_model(path: epath.Path) -> mujoco.MjModel:
     return spec.compile()
 
 
-def _save_rgb_from_packed(packed_row: np.ndarray, width: int, height: int, out_path: str):
-    packed = packed_row.reshape(height, width).astype(np.uint32)
-    b = (packed & 0xFF).astype(np.uint8)
-    g = ((packed >> 8) & 0xFF).astype(np.uint8)
-    r = ((packed >> 16) & 0xFF).astype(np.uint8)
-    img = Image.fromarray(np.dstack([r, g, b]))
-    img.save(out_path)
+def _rgb_image_from_vec4(vec4_array: np.ndarray) -> np.ndarray:
+  """Convert a (H, W, 4) vec4 array to an (H, W, 3) uint8 RGB array.
+
+  The vec4 values are expected to be in [0.0, 1.0] range.
+  """
+  # vec4_array shape is (H, W, 4) where the 4 channels are RGBA in [0.0, 1.0]
+  rgb = vec4_array[:, :, :3]  # Take RGB, drop alpha
+  rgb_uint8 = (np.clip(rgb, 0.0, 1.0) * 255.0).astype(np.uint8)
+  return rgb_uint8
 
 
-def _save_depth(depth_row: np.ndarray, width: int, height: int, scale: float, out_path: str):
-    arr = depth_row.reshape(height, width)
-    arr = np.clip(arr / max(scale, 1e-6), 0.0, 1.0)
-    img = Image.fromarray((arr * 255.0).astype(np.uint8))
-    img.save(out_path)
+def _save_rgb_from_vec4(vec4_array: np.ndarray, out_path: str):
+  """Save a (H, W, 4) vec4 array as an RGB image."""
+  rgb_uint8 = _rgb_image_from_vec4(vec4_array)
+  img = Image.fromarray(rgb_uint8)
+  img.save(out_path)
 
 
-def _rgb_image_from_packed(packed_row: np.ndarray, width: int, height: int) -> np.ndarray:
-  """Convert a packed uint32 row into an (H, W, 3) uint8 RGB array."""
-  packed = packed_row.reshape(height, width).astype(np.uint32)
-  b = (packed & 0xFF).astype(np.uint8)
-  g = ((packed >> 8) & 0xFF).astype(np.uint8)
-  r = ((packed >> 16) & 0xFF).astype(np.uint8)
-  return np.dstack([r, g, b])
-
-
-def _depth_image_from_row(depth_row: np.ndarray, width: int, height: int, scale: float) -> np.ndarray:
-  """Convert a depth row into an (H, W) uint8 array using the given scale."""
-  arr = depth_row.reshape(height, width)
-  arr = np.clip(arr / max(scale, 1e-6), 0.0, 1.0)
+def _depth_image_from_array(depth_array: np.ndarray, scale: float) -> np.ndarray:
+  """Convert a (H, W) depth array into an (H, W) uint8 array using the given scale."""
+  arr = np.clip(depth_array / max(scale, 1e-6), 0.0, 1.0)
   return (arr * 255.0).astype(np.uint8)
 
 
+def _save_depth(depth_array: np.ndarray, scale: float, out_path: str):
+  """Save a (H, W) depth array as a grayscale image."""
+  img = Image.fromarray(_depth_image_from_array(depth_array, scale))
+  img.save(out_path)
+
+
 def _save_tiled_rgb(
-  packed_rows: np.ndarray,
-  width: int,
-  height: int,
+  rgb_4d: np.ndarray,
+  cam_idx: int,
   grid_rows: int,
   grid_cols: int,
   out_path: str,
 ):
-  """Tile multiple RGB worlds into a single image and save it."""
-  nworld = packed_rows.shape[0]
+  """Tile multiple RGB worlds into a single image and save it.
+
+  Args:
+    rgb_4d: 4D array of shape (nworld, ncam, H, W, 4) with vec4 RGB values.
+    cam_idx: Camera index to extract.
+    grid_rows: Number of rows in the tile grid.
+    grid_cols: Number of columns in the tile grid.
+    out_path: Output file path.
+  """
+  nworld = rgb_4d.shape[0]
   expected = grid_rows * grid_cols
   if nworld < expected:
     raise ValueError(f"tiled rendering requires at least {expected} worlds, got {nworld}")
 
   tiles = []
   for wi in range(expected):
-    tiles.append(_rgb_image_from_packed(packed_rows[wi], width, height))
+    # rgb_4d[wi, cam_idx] has shape (H, W, 4)
+    tiles.append(_rgb_image_from_vec4(rgb_4d[wi, cam_idx]))
 
   rows = []
   for r in range(grid_rows):
@@ -135,23 +141,32 @@ def _save_tiled_rgb(
 
 
 def _save_tiled_depth(
-  depth_rows: np.ndarray,
-  width: int,
-  height: int,
+  depth_4d: np.ndarray,
+  cam_idx: int,
   scale: float,
   grid_rows: int,
   grid_cols: int,
   out_path: str,
 ):
-  """Tile multiple depth worlds into a single image and save it."""
-  nworld = depth_rows.shape[0]
+  """Tile multiple depth worlds into a single image and save it.
+
+  Args:
+    depth_4d: 4D array of shape (nworld, ncam, H, W) with depth values.
+    cam_idx: Camera index to extract.
+    scale: Scale factor for depth visualization.
+    grid_rows: Number of rows in the tile grid.
+    grid_cols: Number of columns in the tile grid.
+    out_path: Output file path.
+  """
+  nworld = depth_4d.shape[0]
   expected = grid_rows * grid_cols
   if nworld < expected:
     raise ValueError(f"tiled rendering requires at least {expected} worlds, got {nworld}")
 
   tiles = []
   for wi in range(expected):
-    tiles.append(_depth_image_from_row(depth_rows[wi], width, height, scale))
+    # depth_4d[wi, cam_idx] has shape (H, W)
+    tiles.append(_depth_image_from_array(depth_4d[wi, cam_idx], scale))
 
   rows = []
   for r in range(grid_rows):
@@ -216,18 +231,13 @@ def _main(argv: Sequence[str]):
 
     world = int(_WORLD.value)
     cam = int(_CAM.value)
-    if cam < 0 or cam >= m.ncam:
-      raise ValueError(f"camera index out of range: {cam} not in [0, {m.ncam - 1}]")
+    if cam < 0 or cam >= rc.ncam:
+      raise ValueError(f"camera index out of range: {cam} not in [0, {rc.ncam - 1}]")
     if not _TILED.value:
       if world < 0 or world >= d.nworld:
         raise ValueError(f"world index out of range: {world} not in [0, {d.nworld - 1}]")
 
-    cam_res = rc.cam_res.numpy()
-    base_width = int(cam_res[cam][0])
-    base_height = int(cam_res[cam][1])
-
-    rgb_adr = rc.rgb_adr.numpy()
-    depth_adr = rc.depth_adr.numpy()
+    # Output format: 4D arrays (nworld, ncam, H, W) with vec4 for RGB, float for depth
 
     if _ROLLOUT.value:
       if not _RENDER_RGB.value:
@@ -252,36 +262,27 @@ def _main(argv: Sequence[str]):
       while step < total_steps:
         mjw.render(m, d, rc)
 
+        # Get RGB data: shape (nworld, ncam, H, W, 4) for vec4
+        rgb_all = rc.rgb_data.numpy()
+
         if _TILED.value:
-          rgb_all = rc.rgb_data.numpy()
-          if rgb_adr[cam] != -1:
-            slice_start = rgb_adr[cam]
-            slice_end = slice_start + base_width * base_height
-            rows = rgb_all[:, slice_start:slice_end]
-            # Build a tiled frame from all worlds.
-            expected = grid_rows * grid_cols
-            if rows.shape[0] >= expected:
-              tiles = []
-              for wi in range(expected):
-                tiles.append(_rgb_image_from_packed(rows[wi], base_width, base_height))
-              row_imgs = []
-              for r in range(grid_rows):
-                row_tiles = tiles[r * grid_cols : (r + 1) * grid_cols]
-                row_imgs.append(np.concatenate(row_tiles, axis=1))
-              frame_array = np.concatenate(row_imgs, axis=0)
-            else:
-              frame_array = None
+          # Build a tiled frame from all worlds.
+          expected = grid_rows * grid_cols
+          if rgb_all.shape[0] >= expected:
+            tiles = []
+            for wi in range(expected):
+              # rgb_all[wi, cam] has shape (H, W, 4)
+              tiles.append(_rgb_image_from_vec4(rgb_all[wi, cam]))
+            row_imgs = []
+            for r in range(grid_rows):
+              row_tiles = tiles[r * grid_cols : (r + 1) * grid_cols]
+              row_imgs.append(np.concatenate(row_tiles, axis=1))
+            frame_array = np.concatenate(row_imgs, axis=0)
           else:
             frame_array = None
         else:
-          rgb_all = rc.rgb_data.numpy()
-          if rgb_adr[cam] != -1:
-            slice_start = rgb_adr[cam]
-            slice_end = slice_start + base_width * base_height
-            row = rgb_all[world, slice_start:slice_end]
-            frame_array = _rgb_image_from_packed(row, base_width, base_height)
-          else:
-            frame_array = None
+          # rgb_all[world, cam] has shape (H, W, 4)
+          frame_array = _rgb_image_from_vec4(rgb_all[world, cam])
 
         if frame_array is not None:
           frames.append(Image.fromarray(frame_array))
@@ -312,41 +313,27 @@ def _main(argv: Sequence[str]):
 
     if _TILED.value:
       # Use all worlds and tile them into a 4x4 grid.
-      if rgb_adr[cam] != -1:
+      if _RENDER_RGB.value:
         rgb_all = rc.rgb_data.numpy()
-        slice_start = rgb_adr[cam]
-        slice_end = slice_start + base_width * base_height
-        rows = rgb_all[:, slice_start:slice_end]
-        _save_tiled_rgb(rows, base_width, base_height, grid_rows, grid_cols, _OUTPUT_RGB.value)
+        _save_tiled_rgb(rgb_all, cam, grid_rows, grid_cols, _OUTPUT_RGB.value)
         print(f"Saved tiled RGB to: {_OUTPUT_RGB.value}")
 
-      if depth_adr[cam] != -1:
+      if _RENDER_DEPTH.value:
         depth_all = rc.depth_data.numpy()
-        slice_start = depth_adr[cam]
-        slice_end = slice_start + base_width * base_height
-        rows = depth_all[:, slice_start:slice_end]
-        _save_tiled_depth(
-          rows,
-          base_width,
-          base_height,
-          _DEPTH_SCALE.value,
-          grid_rows,
-          grid_cols,
-          _OUTPUT_DEPTH.value,
-        )
+        _save_tiled_depth(depth_all, cam, _DEPTH_SCALE.value, grid_rows, grid_cols, _OUTPUT_DEPTH.value)
         print(f"Saved tiled depth to: {_OUTPUT_DEPTH.value}")
     else:
       # Original single-world behavior.
-      if rgb_adr[cam] != -1:
+      if _RENDER_RGB.value:
         rgb = rc.rgb_data.numpy()
-        row = rgb[world, rgb_adr[cam] : rgb_adr[cam] + base_width * base_height]
-        _save_rgb_from_packed(row, base_width, base_height, _OUTPUT_RGB.value)
+        # rgb[world, cam] has shape (H, W, 4)
+        _save_rgb_from_vec4(rgb[world, cam], _OUTPUT_RGB.value)
         print(f"Saved RGB to: {_OUTPUT_RGB.value}")
 
-      if depth_adr[cam] != -1:
+      if _RENDER_DEPTH.value:
         depth = rc.depth_data.numpy()
-        row = depth[world, depth_adr[cam] : depth_adr[cam] + base_width * base_height]
-        _save_depth(row, base_width, base_height, _DEPTH_SCALE.value, _OUTPUT_DEPTH.value)
+        # depth[world, cam] has shape (H, W)
+        _save_depth(depth[world, cam], _DEPTH_SCALE.value, _OUTPUT_DEPTH.value)
         print(f"Saved depth to: {_OUTPUT_DEPTH.value}")
 
 

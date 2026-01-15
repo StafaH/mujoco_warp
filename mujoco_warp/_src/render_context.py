@@ -100,10 +100,12 @@ class RenderContext:
   group: wp.array(dtype=int)
   group_root: wp.array(dtype=int)
   ray: wp.array(dtype=wp.vec3)
-  rgb_data: wp.array2d(dtype=wp.uint32)
-  depth_data: wp.array2d(dtype=wp.float32)
-  rgb_adr: wp.array(dtype=int)
-  depth_adr: wp.array(dtype=int)
+  # Output buffers: 4D arrays (nworld, ncam, H, W) for tile-optimized storage
+  # All cameras must have the same resolution for this layout
+  rgb_data: wp.array(dtype=wp.vec4)  # 4D: (nworld, ncam, H, W)
+  depth_data: wp.array(dtype=wp.float32)  # 4D: (nworld, ncam, H, W)
+  img_width: int  # Uniform image width
+  img_height: int  # Uniform image height
 
   total_tiles: int
   tile_cam_idx: wp.array(dtype=int)
@@ -260,7 +262,9 @@ class RenderContext:
         depth_size[cam_idx] = w * h
 
       total += w * h
-    
+
+    # Tile dimensions for tile-based rendering optimization.
+    # These must match TILE_W and TILE_H in render.py
     TILE_W = 16
     TILE_H = 16
     tile_cam_idx = []
@@ -291,14 +295,27 @@ class RenderContext:
     self.tile_bottom_right = wp.array(tile_br, dtype=wp.vec2i)
     self.cam_ray_adr = wp.array(cam_ray_adr, dtype=int)
 
-    self.rgb_adr = wp.array(rgb_adr, dtype=int)
-    self.depth_adr = wp.array(depth_adr, dtype=int)
-    self.rgb_size = wp.array(rgb_size, dtype=int)
-    self.depth_size = wp.array(depth_size, dtype=int)
-    self.rgb_data = wp.zeros((d.nworld, ri), dtype=wp.uint32)
-    self.depth_data = wp.zeros((d.nworld, di), dtype=wp.float32)
-    self.render_rgb=wp.array(render_rgb, dtype=bool)
-    self.render_depth=wp.array(render_depth, dtype=bool)
+    # Verify all cameras have the same resolution for 4D tile-optimized layout
+    first_w = int(cam_res[0][0])
+    first_h = int(cam_res[0][1])
+    for cam_idx in range(ncam):
+      w = int(cam_res[cam_idx][0])
+      h = int(cam_res[cam_idx][1])
+      if w != first_w or h != first_h:
+        raise ValueError(
+          f"Tile-based rendering requires all cameras to have the same resolution. "
+          f"Camera 0 has {first_w}x{first_h}, but camera {cam_idx} has {w}x{h}."
+        )
+
+    self.img_width = first_w
+    self.img_height = first_h
+
+    # 4D output buffers: (nworld, ncam, H, W)
+    # Using vec4 for RGB (allows vectorized tile_store) and float32 for depth
+    self.rgb_data = wp.zeros((d.nworld, ncam, first_h, first_w), dtype=wp.vec4)
+    self.depth_data = wp.zeros((d.nworld, ncam, first_h, first_w), dtype=wp.float32)
+    self.render_rgb = wp.array(render_rgb, dtype=bool)
+    self.render_depth = wp.array(render_depth, dtype=bool)
     self.ray = wp.zeros(int(total), dtype=wp.vec3)
 
     offset = 0
