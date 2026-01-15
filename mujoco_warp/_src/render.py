@@ -27,6 +27,8 @@ from .ray import ray_flex_with_bvh
 from .ray import ray_mesh_with_bvh
 from .ray import ray_plane
 from .ray import ray_sphere
+from .render_context import build_primary_ray
+from .render_context import camera_frustum_bounds
 from .render_context import RenderContext
 from .types import Data
 from .types import GeomType
@@ -580,6 +582,8 @@ def render_megakernel(m: Model, d: Data, rc: RenderContext):
     light_active: wp.array2d(dtype=bool),
     light_type: wp.array2d(dtype=int),
     light_castshadow: wp.array2d(dtype=bool),
+    cam_fovy: wp.array2d(dtype=float),
+    cam_intrinsic: wp.array2d(dtype=wp.vec4),
     # Data in:
     cam_xpos: wp.array2d(dtype=wp.vec3),
     cam_xmat: wp.array2d(dtype=wp.mat33),
@@ -593,7 +597,10 @@ def render_megakernel(m: Model, d: Data, rc: RenderContext):
     bvh_ngeom: int,
     cam_res: wp.array(dtype=wp.vec2i),
     cam_id_map: wp.array(dtype=int),
-    ray: wp.array(dtype=wp.vec3),
+    cam_projection: wp.array(dtype=int),
+    cam_has_intrinsics: wp.array(dtype=int),
+    cam_sensorsize: wp.array(dtype=wp.vec2),
+    znear: float,
     rgb_adr: wp.array(dtype=int),
     depth_adr: wp.array(dtype=int),
     render_rgb: wp.array(dtype=bool),
@@ -638,7 +645,41 @@ def render_megakernel(m: Model, d: Data, rc: RenderContext):
     # Map active camera index to MuJoCo camera ID
     mujoco_cam_id = cam_id_map[cam_idx]
 
-    ray_dir_local_cam = ray[ray_idx]
+    # Get image dimensions
+    img_w = cam_res[cam_idx][0]
+    img_h = cam_res[cam_idx][1]
+
+    # Compute frustum bounds using per-world cam_fovy/cam_intrinsic (enables domain randomization)
+    frustum = camera_frustum_bounds(
+      img_w,
+      img_h,
+      znear,
+      cam_projection[cam_idx],
+      cam_has_intrinsics[cam_idx],
+      cam_sensorsize[cam_idx][0],
+      cam_sensorsize[cam_idx][1],
+      cam_fovy[world_idx, mujoco_cam_id],
+      cam_intrinsic[world_idx, mujoco_cam_id],
+    )
+
+    # Compute pixel coordinates from ray_idx_local
+    px = ray_idx_local % img_w
+    py = ray_idx_local // img_w
+
+    # Build ray direction for this pixel
+    ray_dir_local_cam = build_primary_ray(
+      px,
+      py,
+      img_w,
+      img_h,
+      frustum[0],  # left
+      frustum[1],  # right
+      frustum[2],  # top
+      frustum[3],  # bottom
+      znear,
+      cam_projection[cam_idx],
+    )
+
     ray_dir_world = cam_xmat[world_idx, mujoco_cam_id] @ ray_dir_local_cam
     ray_origin_world = cam_xpos[world_idx, mujoco_cam_id]
 
@@ -770,7 +811,7 @@ def render_megakernel(m: Model, d: Data, rc: RenderContext):
 
   wp.launch(
     kernel=_render_megakernel,
-    dim=(d.nworld, rc.ray.shape[0]),
+    dim=(d.nworld, rc.total_pixels),
     inputs=[
       m.geom_type,
       m.geom_dataid,
@@ -785,6 +826,8 @@ def render_megakernel(m: Model, d: Data, rc: RenderContext):
       m.light_active,
       m.light_type,
       m.light_castshadow,
+      m.cam_fovy,
+      m.cam_intrinsic,
       d.cam_xpos,
       d.cam_xmat,
       d.light_xpos,
@@ -796,7 +839,10 @@ def render_megakernel(m: Model, d: Data, rc: RenderContext):
       rc.bvh_ngeom,
       rc.cam_res,
       rc.cam_id_map,
-      rc.ray,
+      rc.cam_projection,
+      rc.cam_has_intrinsics,
+      rc.cam_sensorsize,
+      rc.znear,
       rc.rgb_adr,
       rc.depth_adr,
       rc.render_rgb,
