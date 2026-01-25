@@ -81,7 +81,7 @@ def _tile_coords(tid: int, W: int, H: int):
 
 
 @event_scope
-def render(m: Model, d: Data, rc: RenderContext):
+def render(m: Model, d: Data, rc: RenderContext, camera: int = -1):
   """Render the current frame.
 
   Outputs are stored in buffers within the render context.
@@ -90,11 +90,14 @@ def render(m: Model, d: Data, rc: RenderContext):
     m: The model on device.
     d: The data on device.
     rc: The render context on device.
+    camera: Camera index to render. Defaults to -1, which renders all cameras.
+      The index refers to the position within the active cameras in the
+      RenderContext (0 to rc.ncam-1), not the MuJoCo camera ID.
   """
   bvh.refit_scene_bvh(m, d, rc)
   if m.nflex:
     bvh.refit_flex_bvh(m, d, rc)
-  render_megakernel(m, d, rc)
+  render_megakernel(m, d, rc, camera)
 
 
 @wp.func
@@ -621,7 +624,7 @@ def compute_lighting(
 
 
 @event_scope
-def render_megakernel(m: Model, d: Data, rc: RenderContext):
+def render_megakernel(m: Model, d: Data, rc: RenderContext, camera: int = -1):
   rc.rgb_data.fill_(wp.uint32(BACKGROUND_COLOR))
   rc.depth_data.fill_(0.0)
 
@@ -679,28 +682,32 @@ def render_megakernel(m: Model, d: Data, rc: RenderContext):
     tex_data: wp.array(dtype=wp.uint32),
     tex_height: wp.array(dtype=int),
     tex_width: wp.array(dtype=int),
+    ray_adr: wp.array(dtype=int),
+    cam_id: int,
     # Out:
     rgb_out: wp.array2d(dtype=wp.uint32),
     depth_out: wp.array2d(dtype=float),
   ):
-    world_idx, ray_idx = wp.tid()
+    world_idx, local_ray_idx = wp.tid()
 
-    # Map global ray_idx -> (cam_idx, ray_idx_local) using cumulative sizes
-    cam_idx = int(-1)
-    ray_idx_local = int(-1)
-    accum = int(0)
-    for i in range(ncam):
-      num_i = cam_res[i][0] * cam_res[i][1]
-      if ray_idx < accum + num_i:
-        cam_idx = i
-        ray_idx_local = ray_idx - accum
-        break
-      accum += num_i
-    if cam_idx == -1 or ray_idx_local < 0:
-      return
+    # Determine camera index and global ray index
+    if cam_id >= 0:
+      cam_idx = cam_id
+      ray_idx = local_ray_idx + ray_adr[cam_id]
+    else:
+      ray_idx = local_ray_idx
+      cam_idx = int(-1)
+      for i in range(ncam):
+        if ray_idx < ray_adr[i + 1]:
+          cam_idx = i
+          break
+      if cam_idx == -1:
+        return
 
     if not render_rgb[cam_idx] and not render_depth[cam_idx]:
       return
+
+    ray_idx_local = ray_idx - ray_adr[cam_idx]
 
     # Map active camera index to MuJoCo camera ID
     mujoco_cam_id = cam_id_map[cam_idx]
@@ -855,7 +862,7 @@ def render_megakernel(m: Model, d: Data, rc: RenderContext):
 
   wp.launch(
     kernel=_render_megakernel,
-    dim=(d.nworld, rc.total_rays),
+    dim=(d.nworld, rc.cam_nray_host[camera]),
     inputs=[
       m.geom_type,
       m.geom_dataid,
@@ -904,6 +911,8 @@ def render_megakernel(m: Model, d: Data, rc: RenderContext):
       rc.tex_data,
       rc.tex_height,
       rc.tex_width,
+      rc.ray_adr,
+      camera,
     ],
     outputs=[
       rc.rgb_data,

@@ -112,6 +112,8 @@ class RenderContext:
   depth_data: wp.array2d(dtype=wp.float32)
   rgb_adr: wp.array(dtype=int)
   depth_adr: wp.array(dtype=int)
+  ray_adr: wp.array(dtype=int)
+  cam_nray_host: np.ndarray # Host array to determine launch dimensions
 
   def __init__(
     self,
@@ -245,27 +247,35 @@ class RenderContext:
     depth_adr = -1 * np.ones(ncam, dtype=int)
     rgb_size = np.zeros(ncam, dtype=int)
     depth_size = np.zeros(ncam, dtype=int)
+    ray_adr = np.zeros(ncam + 1, dtype=int)
+    cam_nray = np.zeros(ncam + 1, dtype=int)
     cam_res = self.cam_res.numpy()
     ri = 0
     di = 0
     total = 0
 
     for idx in range(ncam):
+      ray_adr[idx] = total
+      num_rays_cam = cam_res[idx][0] * cam_res[idx][1]
+      cam_nray[idx] = num_rays_cam
       if render_rgb[idx]:
         rgb_adr[idx] = ri
-        ri += cam_res[idx][0] * cam_res[idx][1]
-        rgb_size[idx] = cam_res[idx][0] * cam_res[idx][1]
+        ri += num_rays_cam
+        rgb_size[idx] = num_rays_cam
       if render_depth[idx]:
         depth_adr[idx] = di
-        di += cam_res[idx][0] * cam_res[idx][1]
-        depth_size[idx] = cam_res[idx][0] * cam_res[idx][1]
-
-      total += cam_res[idx][0] * cam_res[idx][1]
+        di += num_rays_cam
+        depth_size[idx] = num_rays_cam
+      total += num_rays_cam
+    ray_adr[ncam] = total
+    cam_nray[ncam] = total
 
     self.rgb_adr = wp.array(rgb_adr, dtype=int)
     self.depth_adr = wp.array(depth_adr, dtype=int)
     self.rgb_size = wp.array(rgb_size, dtype=int)
     self.depth_size = wp.array(depth_size, dtype=int)
+    self.ray_adr = wp.array(ray_adr, dtype=int)
+    self.cam_nray_host = cam_nray
     self.rgb_data = wp.zeros((d.nworld, ri), dtype=wp.uint32)
     self.depth_data = wp.zeros((d.nworld, di), dtype=wp.float32)
     self.render_rgb = wp.array(render_rgb, dtype=bool)
