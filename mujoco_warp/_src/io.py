@@ -1640,9 +1640,19 @@ def create_render_context(
     flex_nwork = int(cumsum)
 
   textures_registry = []
+  mip_textures_registry = []
+  mip_offsets = []
+  mip_counts = []
   for i in range(mjm.ntex):
-    textures_registry.append(render_util.create_warp_texture(mjm, i))
+    mip_chain = render_util.create_warp_mipmap_chain(mjm, i)
+    textures_registry.append(mip_chain[0])  # level 0 for backward compat
+    mip_offsets.append(len(mip_textures_registry))
+    mip_counts.append(len(mip_chain))
+    mip_textures_registry.extend(mip_chain)
   textures = wp.array(textures_registry, dtype=wp.Texture2D)
+  mip_textures = wp.array(mip_textures_registry, dtype=wp.Texture2D) if mip_textures_registry else wp.array([], dtype=wp.Texture2D)
+  tex_mip_offsets = wp.array(mip_offsets, dtype=int) if mip_offsets else wp.array([], dtype=int)
+  tex_mip_counts = wp.array(mip_counts, dtype=int) if mip_counts else wp.array([], dtype=int)
 
   # Filter active cameras
   if cam_active is not None:
@@ -1743,6 +1753,10 @@ def create_render_context(
     mesh_facetexcoord=wp.array(mjm.mesh_facetexcoord, dtype=wp.vec3i),
     textures=textures,
     textures_registry=textures_registry,
+    mip_textures=mip_textures,
+    mip_textures_registry=mip_textures_registry,
+    tex_mip_offsets=tex_mip_offsets,
+    tex_mip_counts=tex_mip_counts,
     hfield_registry=hfield_registry,
     hfield_bvh_id=hfield_bvh_id_arr,
     hfield_bounds_size=hfield_bounds_size_arr,

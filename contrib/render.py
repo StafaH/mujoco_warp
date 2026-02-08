@@ -34,6 +34,7 @@ from PIL import Image
 
 import mujoco_warp as mjw
 from mujoco_warp._src.io import override_model
+from mujoco_warp._src.io import find_keys
 
 _NWORLD = flags.DEFINE_integer("nworld", 1, "number of parallel worlds")
 _WORLD = flags.DEFINE_integer("world", 0, "world index to save from")
@@ -170,7 +171,13 @@ def _main(argv: Sequence[str]):
 
   mjm = _load_model(epath.Path(argv[1]))
   mjd = mujoco.MjData(mjm)
+  keys = find_keys(mjm, "home")
+  if keys:
+    print(f"Found {len(keys)} keyframes")
+    print(f"Resetting to keyframe {keys[0]}")
+    mujoco.mj_resetDataKeyframe(mjm, mjd, keys[0])
   mujoco.mj_forward(mjm, mjd)
+
 
   wp.config.quiet = flags.FLAGS["verbosity"].value < 1
   wp.init()
@@ -199,7 +206,7 @@ def _main(argv: Sequence[str]):
       render_width = int(_WIDTH.value)
       render_height = int(_HEIGHT.value)
 
-    d = mjw.put_data(mjm, mjd, nworld=nworld)
+    d = mjw.put_data(mjm, mjd, nworld=nworld, njmax=4000, nconmax=512)
 
     rc = mjw.create_render_context(
       mjm,
@@ -310,6 +317,7 @@ def _main(argv: Sequence[str]):
 
     # Single-frame rendering path.
     print("Rendering single frame...")
+    mjw.refit_bvh(m, d, rc)
     mjw.render(m, d, rc)
 
     if _TILED.value:

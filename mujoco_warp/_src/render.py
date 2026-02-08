@@ -47,7 +47,9 @@ def sample_texture(
   # In:
   geom_id: int,
   tex_repeat: wp.vec2,
-  tex: wp.Texture2D,
+  mip_textures: wp.array(dtype=wp.Texture2D),
+  tex_mip_offset: int,
+  tex_mip_count: int,
   pos: wp.vec3,
   rot: wp.mat33,
   mesh_facetexcoord: wp.array(dtype=wp.vec3i),
@@ -58,6 +60,9 @@ def sample_texture(
   bary_v: float,
   f: int,
   mesh_id: int,
+  pixel_size: float,
+  normal: wp.vec3,
+  ray_dir: wp.vec3,
 ) -> wp.vec3:
   uv = wp.vec2(0.0, 0.0)
 
@@ -79,8 +84,46 @@ def sample_texture(
   v = uv[1] * tex_repeat[1]
   u = u - wp.floor(u)
   v = v - wp.floor(v)
-  tex_color = wp.texture_sample(tex, wp.vec2(u, v), dtype=wp.vec4)
-  return wp.vec3(tex_color[0], tex_color[1], tex_color[2])
+
+  # Read level-0 texture dimensions from the hardware texture struct.
+  level0 = mip_textures[tex_mip_offset]
+  tex_w = float(level0.width)
+  tex_h = float(level0.height)
+
+  # Compute mip level from pixel footprint for anti-aliased sampling.
+  # cos_theta accounts for surface foreshortening at grazing angles.
+  n_len = wp.length(normal)
+  n_norm = normal / wp.max(n_len, 1.0e-8)
+  rd_len = wp.length(ray_dir)
+  rd_norm = ray_dir / wp.max(rd_len, 1.0e-8)
+  cos_theta = wp.abs(wp.dot(rd_norm, n_norm))
+  cos_theta = wp.max(cos_theta, 0.001)
+
+  # Texel footprint: how many texels one pixel covers
+  texel_footprint_u = pixel_size / cos_theta * tex_repeat[0] * tex_w
+  texel_footprint_v = pixel_size / cos_theta * tex_repeat[1] * tex_h
+  texel_footprint = wp.max(texel_footprint_u, texel_footprint_v)
+
+  # Trilinear filtering: sample two adjacent mip levels and interpolate
+  mip_level_f = wp.log2(wp.max(texel_footprint, 1.0))
+  mip_level_f = wp.clamp(mip_level_f, 0.0, float(tex_mip_count - 1))
+  mip_lo = int(mip_level_f)
+  mip_hi = wp.min(mip_lo + 1, tex_mip_count - 1)
+  frac = mip_level_f - float(mip_lo)
+
+  uv_coord = wp.vec2(u, v)
+  color_lo = wp.texture_sample(
+    mip_textures[tex_mip_offset + mip_lo], uv_coord, dtype=wp.vec4
+  )
+  color_hi = wp.texture_sample(
+    mip_textures[tex_mip_offset + mip_hi], uv_coord, dtype=wp.vec4
+  )
+
+  inv_frac = 1.0 - frac
+  r = color_lo[0] * inv_frac + color_hi[0] * frac
+  g = color_lo[1] * inv_frac + color_hi[1] * frac
+  b = color_lo[2] * inv_frac + color_hi[2] * frac
+  return wp.vec3(r, g, b)
 
 
 @wp.func
@@ -463,6 +506,9 @@ def render(m: Model, d: Data, rc: RenderContext):
     hfield_bvh_id: wp.array(dtype=wp.uint64),
     flex_rgba: wp.array(dtype=wp.vec4),
     textures: wp.array(dtype=wp.Texture2D),
+    mip_textures: wp.array(dtype=wp.Texture2D),
+    tex_mip_offsets: wp.array(dtype=int),
+    tex_mip_counts: wp.array(dtype=int),
     # Out:
     rgb_out: wp.array2d(dtype=wp.uint32),
     depth_out: wp.array2d(dtype=float),
@@ -489,9 +535,10 @@ def render(m: Model, d: Data, rc: RenderContext):
     # Map active camera index to MuJoCo camera ID
     mujoco_cam_id = cam_id_map[cam_idx]
 
+    img_w = cam_res[cam_idx][0]
+    img_h = cam_res[cam_idx][1]
+
     if wp.static(rc.ray is None):
-      img_w = cam_res[cam_idx][0]
-      img_h = cam_res[cam_idx][1]
       px = ray_idx_local % img_w
       py = ray_idx_local // img_w
       ray_dir_local_cam = compute_ray(
@@ -572,12 +619,18 @@ def render(m: Model, d: Data, rc: RenderContext):
         if mat_id >= 0:
           tex_id = mat_texid[world_idx, mat_id, 1]
           if tex_id >= 0:
+            # Compute approximate pixel world-space footprint for mip level
+            fov_rad = cam_fovy[world_idx, mujoco_cam_id] * wp.static(3.14159265358979 / 180.0)
+            pixel_size = dist * 2.0 * wp.tan(0.5 * fov_rad) / float(img_h)
+
             tex_color = sample_texture(
               geom_type,
               mesh_faceadr,
               geom_id,
               mat_texrepeat[world_idx, mat_id],
-              textures[tex_id],
+              mip_textures,
+              tex_mip_offsets[tex_id],
+              tex_mip_counts[tex_id],
               geom_xpos[world_idx, geom_id],
               geom_xmat[world_idx, geom_id],
               mesh_facetexcoord,
@@ -588,6 +641,9 @@ def render(m: Model, d: Data, rc: RenderContext):
               v,
               f,
               mesh_id,
+              pixel_size,
+              normal,
+              ray_dir_world,
             )
             base_color = wp.cw_mul(base_color, tex_color)
 
@@ -682,6 +738,9 @@ def render(m: Model, d: Data, rc: RenderContext):
       rc.hfield_bvh_id,
       rc.flex_rgba,
       rc.textures,
+      rc.mip_textures,
+      rc.tex_mip_offsets,
+      rc.tex_mip_counts,
     ],
     outputs=[
       rc.rgb_data,

@@ -14,6 +14,7 @@
 # ==============================================================================
 
 import mujoco
+import numpy as np
 import warp as wp
 
 from mujoco_warp._src.types import ProjectionType
@@ -21,45 +22,88 @@ from mujoco_warp._src.types import ProjectionType
 wp.set_module_options({"enable_backward": False})
 
 
-@wp.kernel
-def _convert_texture_data(
-  # In:
-  width: int,
-  adr: int,
-  nc: int,
-  tex_data_in: wp.array(dtype=wp.uint8),
-  # Out:
-  tex_data_out: wp.array3d(dtype=float),
-):
-  """Convert uint8 texture data to vec4 format for efficient sampling."""
-  x, y = wp.tid()
-  offset = adr + (y * width + x) * nc
-  r = tex_data_in[offset + 0] if nc > 0 else wp.uint8(0)
-  g = tex_data_in[offset + 1] if nc > 1 else wp.uint8(0)
-  b = tex_data_in[offset + 2] if nc > 2 else wp.uint8(0)
-  a = wp.uint8(255)
-
-  tex_data_out[y, x, 0] = float(r) * wp.static(1.0 / 255.0)
-  tex_data_out[y, x, 1] = float(g) * wp.static(1.0 / 255.0)
-  tex_data_out[y, x, 2] = float(b) * wp.static(1.0 / 255.0)
-  tex_data_out[y, x, 3] = float(a) * wp.static(1.0 / 255.0)
-
-
-def create_warp_texture(mjm: mujoco.MjModel, tex_id: int) -> wp.array:
-  """Create a Warp texture from a MuJoCo model texture data."""
+def _extract_texture_rgba(mjm: mujoco.MjModel, tex_id: int) -> np.ndarray:
+  """Extract MuJoCo texture data as an (H, W, 4) uint8 RGBA numpy array."""
   tex_adr = mjm.tex_adr[tex_id]
-  tex_width = mjm.tex_width[tex_id]
-  tex_height = mjm.tex_height[tex_id]
-  nchannel = mjm.tex_nchannel[tex_id]
-  tex_data = wp.zeros((tex_height, tex_width, 4), dtype=float)
+  w = mjm.tex_width[tex_id]
+  h = mjm.tex_height[tex_id]
+  nc = mjm.tex_nchannel[tex_id]
 
-  wp.launch(
-    _convert_texture_data,
-    dim=(tex_width, tex_height),
-    inputs=[tex_width, tex_adr, nchannel, wp.array(mjm.tex_data, dtype=wp.uint8)],
-    outputs=[tex_data],
+  raw = mjm.tex_data[tex_adr : tex_adr + w * h * nc].reshape(h, w, nc)
+  rgba = np.full((h, w, 4), 255, dtype=np.uint8)
+  rgba[:, :, :nc] = raw
+  return rgba
+
+
+def _downsample_rgba(data: np.ndarray) -> np.ndarray:
+  """Downsample an (H, W, 4) uint8 array by 2x using box filter."""
+  h, w = data.shape[:2]
+  new_h = max(h // 2, 1)
+  new_w = max(w // 2, 1)
+
+  # Average in float to avoid uint8 overflow, handling dimensions that are
+  # already 1 (only halve in the other direction).
+  fdata = data.astype(np.float32)
+  if h >= 2 and w >= 2:
+    fdata = fdata[: new_h * 2, : new_w * 2]
+    fdata = fdata.reshape(new_h, 2, new_w, 2, 4).mean(axis=(1, 3))
+  elif h >= 2:  # w == 1
+    fdata = fdata[: new_h * 2, :1]
+    fdata = fdata.reshape(new_h, 2, 1, 4).mean(axis=1)
+  elif w >= 2:  # h == 1
+    fdata = fdata[:1, : new_w * 2]
+    fdata = fdata.reshape(1, new_w, 2, 4).mean(axis=2)
+  else:
+    fdata = fdata[:1, :1]
+
+  return (fdata + 0.5).astype(np.uint8)
+
+
+def create_warp_texture(mjm: mujoco.MjModel, tex_id: int) -> wp.Texture2D:
+  """Create a Warp Texture2D from MuJoCo texture data.
+
+  Uses the hardware CUDA texture API with uint8 data (auto-normalized to
+  [0, 1] floats), WRAP address mode for proper tiling, and LINEAR filtering.
+  """
+  rgba = _extract_texture_rgba(mjm, tex_id)
+  return wp.Texture2D(
+    rgba,
+    filter_mode=wp.Texture.FILTER_LINEAR,
+    address_mode=wp.Texture.ADDRESS_WRAP,
   )
-  return wp.Texture2D(tex_data, filter_mode=wp.TextureFilterMode.LINEAR)
+
+
+def create_warp_mipmap_chain(
+  mjm: mujoco.MjModel, tex_id: int,
+) -> list[wp.Texture2D]:
+  """Create a chain of Texture2D mipmap levels from a MuJoCo texture.
+
+  Returns a list of Texture2D objects from level 0 (full resolution) down to
+  1x1. Each level is created with WRAP address mode and LINEAR filtering so
+  the hardware handles bilinear interpolation; the caller selects the
+  appropriate mip level and interpolates between adjacent levels (trilinear).
+  """
+  data = _extract_texture_rgba(mjm, tex_id)
+
+  mip_chain = [
+    wp.Texture2D(
+      data,
+      filter_mode=wp.Texture.FILTER_LINEAR,
+      address_mode=wp.Texture.ADDRESS_WRAP,
+    )
+  ]
+
+  while data.shape[0] > 1 or data.shape[1] > 1:
+    data = _downsample_rgba(data)
+    mip_chain.append(
+      wp.Texture2D(
+        data,
+        filter_mode=wp.Texture.FILTER_LINEAR,
+        address_mode=wp.Texture.ADDRESS_WRAP,
+      )
+    )
+
+  return mip_chain
 
 
 @wp.func

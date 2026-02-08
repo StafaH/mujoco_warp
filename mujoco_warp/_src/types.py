@@ -1782,6 +1782,10 @@ class RenderContext:
     mesh_facetexcoord: mesh face texture coordinates
     textures: textures
     textures_registry: texture registry
+    mip_textures: flat array of all mipmap level Texture2D objects
+    mip_textures_registry: list of all mipmap level Texture2D objects
+    tex_mip_offsets: per-texture offset into mip_textures
+    tex_mip_counts: per-texture number of mipmap levels
     hfield_registry: hfield BVH id to warp mesh mapping
     hfield_bvh_id: hfield BVH ids
     hfield_bounds_size: hfield bounds size
@@ -1835,6 +1839,10 @@ class RenderContext:
   mesh_facetexcoord: array("nmeshface", wp.vec3i)
   textures: array("*", wp.Texture2D)
   textures_registry: list[wp.Texture2D]
+  mip_textures: array("*", wp.Texture2D)
+  mip_textures_registry: list[wp.Texture2D]
+  tex_mip_offsets: array("ntex", int)
+  tex_mip_counts: array("ntex", int)
   hfield_registry: dict
   hfield_bvh_id: array("nhfield", wp.uint64)
   hfield_bounds_size: array("nhfield", wp.vec3)
