@@ -59,7 +59,7 @@ def create_warp_texture(mjm: mujoco.MjModel, tex_id: int) -> wp.array:
     inputs=[tex_width, tex_adr, nchannel, wp.array(mjm.tex_data, dtype=wp.uint8)],
     outputs=[tex_data],
   )
-  return wp.Texture2D(tex_data, filter_mode=wp.TextureFilterMode.LINEAR)
+  return wp.Texture2D(tex_data, filter_mode=wp.TextureFilterMode.LINEAR, num_mip_levels=0)
 
 
 @wp.func

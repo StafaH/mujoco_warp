@@ -48,6 +48,9 @@ def sample_texture(
   # Model:
   geom_type: wp.array(dtype=int),
   mesh_faceadr: wp.array(dtype=int),
+  mesh_vertadr: wp.array(dtype=int),
+  mesh_vert: wp.array(dtype=wp.vec3),
+  mesh_face: wp.array(dtype=wp.vec3i),
   # In:
   geom_id: int,
   tex_repeat: wp.vec2,
@@ -62,12 +65,19 @@ def sample_texture(
   bary_v: float,
   f: int,
   mesh_id: int,
+  cone_width: float,
 ) -> wp.vec3:
   uv = wp.vec2(0.0, 0.0)
+  lod = float(0.0)
 
   if geom_type[geom_id] == GeomType.PLANE:
     local = wp.transpose(rot) @ (hit_point - pos)
     uv = wp.vec2(local[0], local[1])
+    rho = wp.max(
+      cone_width * tex_repeat[0] * float(tex.width),
+      cone_width * tex_repeat[1] * float(tex.height),
+    )
+    lod = wp.log(wp.max(rho, 1.0e-10)) / wp.log(2.0)
 
   if geom_type[geom_id] == GeomType.MESH:
     if f < 0 or mesh_id < 0:
@@ -79,11 +89,33 @@ def sample_texture(
     uv2 = mesh_texcoord[mesh_texcoord_offsets[mesh_id] + mesh_facetexcoord[face_adr][2]]
     uv = uv0 * bary_u + uv1 * bary_v + uv2 * (1.0 - bary_u - bary_v)
 
+    v_adr = mesh_vertadr[mesh_id]
+    face_verts = mesh_face[face_adr]
+    p0 = mesh_vert[v_adr + face_verts[0]]
+    p1 = mesh_vert[v_adr + face_verts[1]]
+    p2 = mesh_vert[v_adr + face_verts[2]]
+    world_area = 0.5 * wp.length(wp.cross(p1 - p0, p2 - p0))
+
+    duv1 = uv1 - uv0
+    duv2 = uv2 - uv0
+    uv_area = 0.5 * wp.abs(duv1[0] * duv2[1] - duv1[1] * duv2[0])
+
+    uv_per_world = float(1.0)
+    if world_area > 1.0e-12:
+      uv_per_world = wp.sqrt(uv_area / world_area)
+
+    rho = wp.max(
+      cone_width * uv_per_world * tex_repeat[0] * float(tex.width),
+      cone_width * uv_per_world * tex_repeat[1] * float(tex.height),
+    )
+    lod = wp.log(wp.max(rho, 1.0e-10)) / wp.log(2.0)
+
   u = uv[0] * tex_repeat[0]
   v = uv[1] * tex_repeat[1]
   u = u - wp.floor(u)
   v = v - wp.floor(v)
-  tex_color = wp.texture_sample(tex, wp.vec2(u, v), dtype=wp.vec4)
+  lod = wp.max(lod, 0.0)
+  tex_color = wp.texture_sample(tex, wp.vec2(u, v), dtype=wp.vec4, lod=lod)
   return wp.vec3(tex_color[0], tex_color[1], tex_color[2])
 
 
@@ -435,6 +467,9 @@ def render(m: Model, d: Data, rc: RenderContext):
     light_castshadow: wp.array2d(dtype=bool),
     light_active: wp.array2d(dtype=bool),
     mesh_faceadr: wp.array(dtype=int),
+    mesh_vertadr: wp.array(dtype=int),
+    mesh_vert: wp.array(dtype=wp.vec3),
+    mesh_face: wp.array(dtype=wp.vec3i),
     mat_texid: wp.array3d(dtype=int),
     mat_texrepeat: wp.array2d(dtype=wp.vec2),
     mat_rgba: wp.array2d(dtype=wp.vec4),
@@ -560,6 +595,15 @@ def render(m: Model, d: Data, rc: RenderContext):
     # Shade the pixel
     hit_point = ray_origin_world + ray_dir_world * dist
 
+    img_h_f = float(cam_res[cam_idx][1])
+    sensor_h = cam_sensorsize[mujoco_cam_id][1]
+    if sensor_h != 0.0:
+      fy = cam_intrinsic[world_idx % cam_intrinsic.shape[0], mujoco_cam_id][1]
+      cone_width = dist * sensor_h / (fy * img_h_f)
+    else:
+      fovy_rad = cam_fovy[world_idx % cam_fovy.shape[0], mujoco_cam_id] * wp.static(wp.pi / 180.0)
+      cone_width = dist * 2.0 * wp.tan(0.5 * fovy_rad) / img_h_f
+
     if geom_id == -2:
       # TODO: Currently flex textures are not supported, and only the first rgba value
       # is used until further flex support is added.
@@ -581,6 +625,9 @@ def render(m: Model, d: Data, rc: RenderContext):
             tex_color = sample_texture(
               geom_type,
               mesh_faceadr,
+              mesh_vertadr,
+              mesh_vert,
+              mesh_face,
               geom_id,
               mat_texrepeat[world_idx % mat_texrepeat.shape[0], mat_id],
               textures[tex_id],
@@ -594,6 +641,7 @@ def render(m: Model, d: Data, rc: RenderContext):
               v,
               f,
               mesh_id,
+              cone_width,
             )
             base_color = wp.cw_mul(base_color, tex_color)
 
@@ -657,6 +705,9 @@ def render(m: Model, d: Data, rc: RenderContext):
       m.light_castshadow,
       m.light_active,
       m.mesh_faceadr,
+      m.mesh_vertadr,
+      m.mesh_vert,
+      m.mesh_face,
       m.mat_texid,
       m.mat_texrepeat,
       m.mat_rgba,
