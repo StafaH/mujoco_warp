@@ -306,8 +306,7 @@ def _worker_main(scene_path, resolutions, nworlds, nsteps):
         d = mjw.put_data(mjm, mjd, nworld=nw)
         rc = mjw.create_render_context(
             mjm,
-            m,
-            d,
+            nworld=nw,
             cam_res=(res_w, res_h),
             render_rgb=True,
             render_depth=True,
@@ -359,7 +358,8 @@ def _worker_main(scene_path, resolutions, nworlds, nsteps):
       m_prev = mjw.put_model(mjm)
       d_prev = mjw.put_data(mjm, mjd_prev, nworld=1)
       rc_prev = mjw.create_render_context(
-          mjm, m_prev, d_prev,
+          mjm,
+          nworld=1,
           cam_res=preview_res,
           render_rgb=True,
           render_depth=[False] * mjm.ncam,
