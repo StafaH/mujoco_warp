@@ -137,6 +137,10 @@ def _render_preview(mjm: mujoco.MjModel) -> dict | None:
       depth = np.where(valid, depth / dmax, 0.0)
     depth_images.append(depth)
 
+  del m, d, rc
+  gc.collect()
+  wp.synchronize()
+
   return {"rgb": rgb_images, "depth": depth_images}
 
 
@@ -307,6 +311,10 @@ def main():
   matplotlib.use("Agg")
   wp.config.quiet = True
   wp.init()
+
+  # Force warp's memory pool to release freed memory back to CUDA immediately,
+  # preventing OOM from accumulated texture/buffer allocations across scenes.
+  wp.set_mempool_release_threshold("cuda:0", 0)
 
   all_results = {}
   for label, scene_path in SCENES:
