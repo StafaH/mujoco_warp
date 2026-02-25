@@ -23,6 +23,7 @@ Usage:
   python renderbench.py
 """
 
+import gc
 import os
 from pathlib import Path
 
@@ -181,6 +182,11 @@ def _benchmark_scene(scene_path: str) -> dict:
         fps = (nw * NSTEPS) / total_time
         results[nw][res_key] = fps
         print(f"{fps:,.1f} FPS")
+
+        # Free GPU resources (textures, buffers) before next iteration.
+        del m, d, rc
+        gc.collect()
+        wp.synchronize()
 
   return results
 
