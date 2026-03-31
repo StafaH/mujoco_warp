@@ -2839,6 +2839,12 @@ def create_render_context(
 
   bvh_ngeom = len(geom_enabled_idx)
 
+  # raypacket tracing
+  tile_h = 8
+  tile_w = 8
+  ntiles_h = cam_res_np[0][0] // tile_h + 1
+  ntiles_w = cam_res_np[0][1] // tile_w + 1
+
   rc = types.RenderContext(
     nrender=ncam,
     cam_res=cam_res_arr,
@@ -2887,6 +2893,11 @@ def create_render_context(
     render_seg=wp.array(render_seg, dtype=bool),
     znear=znear,
     total_rays=int(total),
+    # packet raytracing
+    tile_h=tile_h,
+    tile_w=tile_w,
+    ntiles_h=ntiles_h,
+    ntiles_w=ntiles_w,
   )
 
   bvh.build_scene_bvh(mjm, mjd, rc, nworld)

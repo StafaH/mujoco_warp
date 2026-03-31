@@ -1983,3 +1983,9 @@ class RenderContext:
   render_seg: array("ncam", bool)
   znear: float
   total_rays: int
+
+  # packet raytracing
+  tile_h: int
+  tile_w: int
+  ntiles_h: int
+  ntiles_w: int
