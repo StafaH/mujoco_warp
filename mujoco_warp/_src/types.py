@@ -1989,3 +1989,6 @@ class RenderContext:
   tile_w: int
   ntiles_h: int
   ntiles_w: int
+  rgb_out_tiled: array("nworld", "nrender", "*", "*", wp.uint32)
+  depth_out_tiled: array("nworld", "nrender", "*", "*", float)
+  seg_out_tiled: array("nworld", "nrender", "*", "*", int)

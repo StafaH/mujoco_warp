@@ -2842,8 +2842,14 @@ def create_render_context(
   # raypacket tracing
   tile_h = 8
   tile_w = 8
-  ntiles_h = cam_res_np[0][0] // tile_h + 1
-  ntiles_w = cam_res_np[0][1] // tile_w + 1
+  img_w = int(cam_res_np[0][0])
+  img_h = int(cam_res_np[0][1])
+  ntiles_h = img_w // tile_h + 1
+  ntiles_w = img_h // tile_w + 1
+
+  rgb_out_tiled = wp.zeros((nworld, ncam, img_h, img_w), dtype=wp.uint32)
+  depth_out_tiled = wp.zeros((nworld, ncam, img_h, img_w), dtype=float)
+  seg_out_tiled = wp.zeros((nworld, ncam, img_h, img_w), dtype=int)
 
   rc = types.RenderContext(
     nrender=ncam,
@@ -2898,6 +2904,9 @@ def create_render_context(
     tile_w=tile_w,
     ntiles_h=ntiles_h,
     ntiles_w=ntiles_w,
+    rgb_out_tiled=rgb_out_tiled,
+    depth_out_tiled=depth_out_tiled,
+    seg_out_tiled=seg_out_tiled,
   )
 
   bvh.build_scene_bvh(mjm, mjd, rc, nworld)

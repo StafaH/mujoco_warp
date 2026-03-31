@@ -62,7 +62,7 @@ from mujoco_warp._src.passive import passive as passive
 from mujoco_warp._src.ray import ray as ray
 from mujoco_warp._src.ray import rays as rays
 from mujoco_warp._src.render import render as render
-from mujoco_warp._src.render import render2 as render2
+from mujoco_warp._src.render import tile_render as tile_render
 from mujoco_warp._src.render_util import get_depth as get_depth
 from mujoco_warp._src.render_util import get_rgb as get_rgb
 from mujoco_warp._src.render_util import get_segmentation as get_segmentation
