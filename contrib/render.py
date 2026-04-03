@@ -49,6 +49,7 @@ _USE_TILE_RENDER = flags.DEFINE_bool("tile_render", False, "use tile rendering")
 _DEVICE = flags.DEFINE_string("device", None, "override the default Warp device")
 _CLEAR_KERNEL_CACHE = flags.DEFINE_bool("clear_kernel_cache", False, "clear Warp kernel cache before rendering")
 _OVERRIDE = flags.DEFINE_multi_string("override", [], "Model overrides (notation: foo.bar = baz)", short_name="o")
+_KEYFRAME = flags.DEFINE_integer("keyframe", 0, "keyframe to initialize simulation.")
 _OUTPUT_RGB = flags.DEFINE_string("output_rgb", "debug.png", "output path for RGB image")
 _OUTPUT_DEPTH = flags.DEFINE_string("output_depth", "debug_depth.png", "output path for depth image")
 _DEPTH_SCALE = flags.DEFINE_float("depth_scale", 5.0, "scale factor to map depth to 0..255 for preview")
@@ -172,7 +173,10 @@ def _main(argv: Sequence[str]):
 
   mjm = _load_model(epath.Path(argv[1]))
   mjd = mujoco.MjData(mjm)
+  if mjm.nkey > 0 and _KEYFRAME.value > -1:
+    mujoco.mj_resetDataKeyframe(mjm, mjd, _KEYFRAME.value)
   mujoco.mj_forward(mjm, mjd)
+
 
   wp.config.quiet = flags.FLAGS["verbosity"].value < 1
   wp.init()
@@ -202,6 +206,7 @@ def _main(argv: Sequence[str]):
       render_height = int(_HEIGHT.value)
 
     d = mjw.put_data(mjm, mjd, nworld=nworld)
+    mjw.forward(m, d)
 
     rc = mjw.create_render_context(
       mjm,
@@ -315,6 +320,7 @@ def _main(argv: Sequence[str]):
 
     # Single-frame rendering path.
     print("Rendering single frame...")
+    mjw.refit_bvh(m, d, rc)
     if _USE_TILE_RENDER.value:
       mjw.tile_render(m, d, rc)
     else:
