@@ -184,6 +184,7 @@ def write_contact(
   contact_solimp_out: wp.array(dtype=vec5),
   contact_dim_out: wp.array(dtype=int),
   contact_geom_out: wp.array(dtype=wp.vec2i),
+  contact_efc_address_out: wp.array2d(dtype=int),
   contact_worldid_out: wp.array(dtype=int),
   contact_type_out: wp.array(dtype=int),
   contact_geomcollisionid_out: wp.array(dtype=int),
@@ -223,6 +224,8 @@ def write_contact(
     contact_solimp_out[cid] = solimp_in
     contact_type_out[cid] = contact_type
     contact_geomcollisionid_out[cid] = id_
+    for i in range(contact_efc_address_out.shape[1]):
+      contact_efc_address_out[cid, i] = -1
     return int(active)
   return 0
 
@@ -263,13 +266,13 @@ def contact_params(
   # (ie, pairid[0] < -1 and pairid[1] < 0)
 
   if pairid > -1:
-    margin = pair_margin[worldid, pairid]
-    gap = pair_gap[worldid, pairid]
+    margin = pair_margin[worldid % pair_margin.shape[0], pairid]
+    gap = pair_gap[worldid % pair_gap.shape[0], pairid]
     condim = pair_dim[pairid]
-    friction = pair_friction[worldid, pairid]
-    solref = pair_solref[worldid, pairid]
-    solreffriction = pair_solreffriction[worldid, pairid]
-    solimp = pair_solimp[worldid, pairid]
+    friction = pair_friction[worldid % pair_friction.shape[0], pairid]
+    solref = pair_solref[worldid % pair_solref.shape[0], pairid]
+    solreffriction = pair_solreffriction[worldid % pair_solreffriction.shape[0], pairid]
+    solimp = pair_solimp[worldid % pair_solimp.shape[0], pairid]
   else:
     g1 = geoms[0]
     g2 = geoms[1]

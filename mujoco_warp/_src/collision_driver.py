@@ -20,6 +20,7 @@ import warp as wp
 from mujoco_warp._src.collision_convex import convex_narrowphase
 from mujoco_warp._src.collision_core import CollisionContext
 from mujoco_warp._src.collision_core import create_collision_context
+from mujoco_warp._src.collision_flex import flex_narrowphase
 from mujoco_warp._src.collision_primitive import primitive_narrowphase
 from mujoco_warp._src.collision_sdf import sdf_narrowphase
 from mujoco_warp._src.math import upper_tri_index
@@ -291,13 +292,13 @@ def _broadphase_filter(opt_broadphase_filter: int, ngeom_aabb: int, ngeom_rbound
     # 8: obb
 
     aabb_id = worldid % ngeom_aabb if wp.static(ngeom_aabb > 1) else 0
-    center1, center2 = geom_aabb[aabb_id, geom1, 0], geom_aabb[aabb_id, geom2, 0]
-    size1, size2 = geom_aabb[aabb_id, geom1, 1], geom_aabb[aabb_id, geom2, 1]
+    center1, center2 = geom_aabb[aabb_id, geom1, 0], geom_aabb[aabb_id, geom2, 0]  # kernel_analyzer: ignore
+    size1, size2 = geom_aabb[aabb_id, geom1, 1], geom_aabb[aabb_id, geom2, 1]  # kernel_analyzer: ignore
 
     rbound_id = worldid % ngeom_rbound if wp.static(ngeom_rbound > 1) else 0
-    rbound1, rbound2 = geom_rbound[rbound_id, geom1], geom_rbound[rbound_id, geom2]
+    rbound1, rbound2 = geom_rbound[rbound_id, geom1], geom_rbound[rbound_id, geom2]  # kernel_analyzer: ignore
     margin_id = worldid % ngeom_margin if wp.static(ngeom_margin > 1) else 0
-    margin1, margin2 = geom_margin[margin_id, geom1], geom_margin[margin_id, geom2]
+    margin1, margin2 = geom_margin[margin_id, geom1], geom_margin[margin_id, geom2]  # kernel_analyzer: ignore
     xpos1, xpos2 = geom_xpos_in[worldid, geom1], geom_xpos_in[worldid, geom2]
     xmat1, xmat2 = geom_xmat_in[worldid, geom1], geom_xmat_in[worldid, geom2]
 
@@ -746,6 +747,9 @@ def _narrowphase(m: Model, d: Data, ctx: CollisionContext):
   if m.has_sdf_geom:
     sdf_narrowphase(m, d, ctx)
 
+  if m.nflex > 0:
+    flex_narrowphase(m, d)
+
 
 @event_scope
 def collision(m: Model, d: Data):
@@ -780,3 +784,6 @@ def collision(m: Model, d: Data):
     sap_broadphase(m, d, ctx)
 
   _narrowphase(m, d, ctx)
+
+  if m.callback.contactfilter:
+    m.callback.contactfilter(m, d)
