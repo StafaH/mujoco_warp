@@ -915,7 +915,7 @@ def tile_render(m: Model, d: Data, rc: RenderContext):
     dir_br = cam_rot @ ray[id_br]
 
     t_near = float(0.1)
-    max_t = float(10.0)
+    max_t = float(5.0)
     near_tl = cam_origin + dir_tl * t_near
     near_tr = cam_origin + dir_tr * t_near
     near_bl = cam_origin + dir_bl * t_near

@@ -45,6 +45,7 @@ _RENDER_DEPTH = flags.DEFINE_bool("depth", True, "render depth image")
 _RENDER_SEG = flags.DEFINE_bool("seg", False, "render segmentation image")
 _USE_TEXTURES = flags.DEFINE_bool("textures", True, "use textures")
 _USE_SHADOWS = flags.DEFINE_bool("shadows", False, "use shadows")
+_USE_TILE_RENDER = flags.DEFINE_bool("tile_render", False, "use tile rendering")
 _DEVICE = flags.DEFINE_string("device", None, "override the default Warp device")
 _CLEAR_KERNEL_CACHE = flags.DEFINE_bool("clear_kernel_cache", False, "clear Warp kernel cache before rendering")
 _OVERRIDE = flags.DEFINE_multi_string("override", [], "Model overrides (notation: foo.bar = baz)", short_name="o")
@@ -253,7 +254,10 @@ def _main(argv: Sequence[str]):
       step = 0
       while step < total_steps:
         mjw.refit_bvh(m, d, rc)
-        mjw.render(m, d, rc)
+        if _USE_TILE_RENDER.value:
+          mjw.tile_render(m, d, rc)
+        else:
+          mjw.render(m, d, rc)
 
         if _TILED.value:
           rgb_all = rc.rgb_data.numpy()
@@ -311,7 +315,10 @@ def _main(argv: Sequence[str]):
 
     # Single-frame rendering path.
     print("Rendering single frame...")
-    mjw.render(m, d, rc)
+    if _USE_TILE_RENDER.value:
+      mjw.tile_render(m, d, rc)
+    else:
+      mjw.render(m, d, rc)
 
     if _TILED.value:
       # Use all worlds and tile them into a 4x4 grid.
