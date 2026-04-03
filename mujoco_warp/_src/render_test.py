@@ -165,6 +165,137 @@ class RenderTest(parameterized.TestCase):
       rtol=1e-2,
     )
 
+  @parameterized.parameters(2, 512)
+  def test_tile_render(self, nworld: int):
+    mjm, mjd, m, d = test_data.fixture("primitives.xml", nworld=nworld)
+
+    rc = mjw.create_render_context(
+      mjm,
+      nworld=nworld,
+      cam_res=(32, 32),
+      render_rgb=True,
+      render_depth=True,
+    )
+
+    mjw.tile_render(m, d, rc)
+
+    rgb = rc.rgb_data.numpy()
+    depth = rc.depth_data.numpy()
+
+    self.assertGreater(np.count_nonzero(rgb), 0)
+    self.assertGreater(np.count_nonzero(depth), 0)
+
+    self.assertNotEqual(np.unique(rgb).shape[0], 1)
+    self.assertNotEqual(np.unique(depth).shape[0], 1)
+
+  def test_tile_render_humanoid(self):
+    mjm, mjd, m, d = test_data.fixture("humanoid/humanoid.xml")
+    rc = mjw.create_render_context(
+      mjm,
+      cam_res=(32, 32),
+      render_rgb=True,
+      render_depth=True,
+    )
+    mjw.tile_render(m, d, rc)
+    rgb = rc.rgb_data.numpy()
+
+    self.assertNotEqual(np.unique(rgb).shape[0], 1)
+
+  @parameterized.parameters(2, 512)
+  def test_tile_render_segmentation(self, nworld: int):
+    mjm, mjd, m, d = test_data.fixture("primitives.xml", nworld=nworld)
+
+    rc = mjw.create_render_context(
+      mjm,
+      nworld=nworld,
+      cam_res=(32, 32),
+      render_rgb=False,
+      render_depth=False,
+      render_seg=True,
+    )
+
+    mjw.tile_render(m, d, rc)
+
+    seg = rc.seg_data.numpy()
+
+    self.assertTrue(np.any(seg >= 0), "Expected at least one geom hit (>= 0)")
+    self.assertGreater(np.unique(seg).shape[0], 1)
+
+  def test_tile_render_rgb_and_segmentation(self):
+    mjm, mjd, m, d = test_data.fixture("primitives.xml", nworld=2)
+
+    rc = mjw.create_render_context(
+      mjm,
+      nworld=2,
+      cam_res=(32, 32),
+      render_rgb=True,
+      render_seg=True,
+    )
+
+    mjw.tile_render(m, d, rc)
+
+    rgb = rc.rgb_data.numpy()
+    seg = rc.seg_data.numpy()
+
+    self.assertGreater(np.count_nonzero(rgb), 0)
+    self.assertTrue(np.any(seg >= 0))
+
+  def test_tile_render_matches_render(self):
+    """tile_render should produce identical output to render."""
+    mjm, mjd, m, d = test_data.fixture("primitives.xml", nworld=2)
+
+    rc = mjw.create_render_context(
+      mjm,
+      nworld=2,
+      cam_res=(32, 32),
+      render_rgb=True,
+      render_depth=True,
+      render_seg=True,
+    )
+
+    mjw.render(m, d, rc)
+    rgb_ref = rc.rgb_data.numpy().copy()
+    depth_ref = rc.depth_data.numpy().copy()
+    seg_ref = rc.seg_data.numpy().copy()
+
+    mjw.tile_render(m, d, rc)
+    rgb_tile = rc.rgb_data.numpy()
+    depth_tile = rc.depth_data.numpy()
+    seg_tile = rc.seg_data.numpy()
+
+    np.testing.assert_array_equal(rgb_ref, rgb_tile)
+    np.testing.assert_array_equal(seg_ref, seg_tile)
+    np.testing.assert_allclose(depth_ref, depth_tile, atol=1e-4, rtol=1e-4)
+
+  @absltest.skipIf(not _HAS_RENDERER, "MuJoCo rendering requires OpenGL")
+  def test_tile_render_depth_matches_mujoco(self):
+    """Depth values should match native MuJoCo (planar depth, not Euclidean)."""
+    mjm, mjd, m, d = test_data.fixture("primitives.xml", nworld=1)
+    cam_w, cam_h = 32, 32
+
+    rc = mjw.create_render_context(
+      mjm,
+      nworld=1,
+      cam_res=(cam_w, cam_h),
+      render_rgb=[False],
+      render_depth=[True],
+    )
+    mjw.tile_render(m, d, rc)
+    warp_depth = rc.depth_data.numpy()[0]
+
+    with mujoco.Renderer(mjm, height=cam_h, width=cam_w) as renderer:
+      renderer.update_scene(mjd, camera=0)
+      renderer.enable_depth_rendering()
+      mj_depth = renderer.render().flatten()
+
+    valid = (warp_depth > 0) & (mj_depth > 0)
+    np.testing.assert_allclose(
+      warp_depth[valid],
+      mj_depth[valid],
+      atol=1e-2,
+      rtol=1e-2,
+    )
+
 
 if __name__ == "__main__":
   wp.init()
