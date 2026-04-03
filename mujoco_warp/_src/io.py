@@ -2647,6 +2647,8 @@ def create_render_context(
   cam_active: list[bool] | None = None,
   flex_render_smooth: bool = True,
   use_precomputed_rays: bool = True,
+  tile_w: int = 8,
+  tile_h: int = 8,
 ) -> types.RenderContext:
   """Creates a render context on device.
 
@@ -2667,6 +2669,8 @@ def create_render_context(
     flex_render_smooth: Whether to render flex meshes smoothly.
     use_precomputed_rays: Use precomputed rays instead of computing during rendering.
                           When using domain randomization for camera intrinsics, set to False.
+    tile_h: The height of the tile.
+    tile_w: The width of the tile.
 
   Returns:
     The render context containing rendering fields and output arrays on device.
@@ -2842,8 +2846,6 @@ def create_render_context(
   bvh_ngeom = len(geom_enabled_idx)
 
   # raypacket tracing
-  tile_h = 8
-  tile_w = 8
   tile_info_list = []
   for idx in range(ncam):
     cam_w = int(cam_res_np[idx][0])

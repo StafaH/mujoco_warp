@@ -76,6 +76,8 @@ _RENDER_RGB = flags.DEFINE_bool("rgb", True, "render RGB image")
 _RENDER_DEPTH = flags.DEFINE_bool("depth", True, "render depth image")
 _USE_TEXTURES = flags.DEFINE_bool("textures", True, "use textures")
 _USE_SHADOWS = flags.DEFINE_bool("shadows", False, "use shadows")
+_TILE_W = flags.DEFINE_integer("tile_w", 8, "tile width (pixels)")
+_TILE_H = flags.DEFINE_integer("tile_h", 8, "tile height (pixels)")
 
 
 def _load_model(path: epath.Path) -> mujoco.MjModel:
@@ -317,12 +319,14 @@ def _main(argv: Sequence[str]):
     if "rc" in inspect.signature(_FUNCS[_FUNCTION.value]).parameters.keys():
       rc = mjw.create_render_context(
         mjm,
-        _NWORLD.value,
-        (_WIDTH.value, _HEIGHT.value),
-        _RENDER_RGB.value,
-        _RENDER_DEPTH.value,
-        _USE_TEXTURES.value,
-        _USE_SHADOWS.value,
+        nworld=_NWORLD.value,
+        cam_res=(_WIDTH.value, _HEIGHT.value),
+        render_rgb=_RENDER_RGB.value,
+        render_depth=_RENDER_DEPTH.value,
+        use_textures=_USE_TEXTURES.value,
+        use_shadows=_USE_SHADOWS.value,
+        tile_w=_TILE_W.value,
+        tile_h=_TILE_H.value,
       )
 
     if _FORMAT.value == "human":
