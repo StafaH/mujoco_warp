@@ -52,7 +52,6 @@ SCENES = [
     ("Franka Panda Primitive 2", "benchmarks/franka_primtive_2cam/scene.xml"),
     ("Apptronik Heightfield", "benchmarks/apptronik_apollo/scene_hfield.xml"),
 ]
-
 RESOLUTIONS = [(32, 32), (64, 64), (128, 128), (256, 256)]
 NWORLDS = [512, 1024, 2048, 4096]
 NSTEPS = 100
@@ -61,6 +60,8 @@ NROWS, NCOLS = 4, 2
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 RES_LABELS = [f"{r[0]}x{r[1]}" for r in RESOLUTIONS]
+
+USE_TILE_RENDER = True
 
 # ============================================================================
 # Benchmarking
@@ -103,7 +104,10 @@ def _render_preview(mjm: mujoco.MjModel) -> dict | None:
       use_shadows=False,
   )
   mjw.refit_bvh(m, d, rc)
-  mjw.render(m, d, rc)
+  if USE_TILE_RENDER:
+    mjw.tile_render(m, d, rc)
+  else:
+    mjw.render(m, d, rc)
   wp.synchronize()
 
   rgb_all = rc.rgb_data.numpy()
@@ -153,7 +157,10 @@ def _benchmark_scene(scene_path: str) -> dict:
 
   def refit_and_render(m, d, rc):
     mjw.refit_bvh(m, d, rc)
-    mjw.render(m, d, rc)
+    if USE_TILE_RENDER:
+      mjw.tile_render(m, d, rc)
+    else:
+      mjw.render(m, d, rc)
 
   results = {}
   with wp.ScopedDevice(device=None):
