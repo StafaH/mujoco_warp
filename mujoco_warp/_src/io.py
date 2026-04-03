@@ -2791,6 +2791,7 @@ def create_render_context(
   rgb_adr = -1 * np.ones(ncam, dtype=int)
   depth_adr = -1 * np.ones(ncam, dtype=int)
   seg_adr = -1 * np.ones(ncam, dtype=int)
+  ray_adr = np.zeros(ncam, dtype=int)
   cam_res_np = cam_res_arr.numpy()
   ri = 0
   di = 0
@@ -2798,6 +2799,7 @@ def create_render_context(
   total = 0
 
   for idx in range(ncam):
+    ray_adr[idx] = total
     if render_rgb[idx]:
       rgb_adr[idx] = ri
       ri += cam_res_np[idx][0] * cam_res_np[idx][1]
@@ -2842,14 +2844,17 @@ def create_render_context(
   # raypacket tracing
   tile_h = 8
   tile_w = 8
-  img_w = int(cam_res_np[0][0])
-  img_h = int(cam_res_np[0][1])
-  ntiles_h = img_w // tile_h + 1
-  ntiles_w = img_h // tile_w + 1
-
-  rgb_out_tiled = wp.zeros((nworld, ncam, img_h, img_w), dtype=wp.uint32)
-  depth_out_tiled = wp.zeros((nworld, ncam, img_h, img_w), dtype=float)
-  seg_out_tiled = wp.zeros((nworld, ncam, img_h, img_w), dtype=int)
+  tile_info_list = []
+  for idx in range(ncam):
+    cam_w = int(cam_res_np[idx][0])
+    cam_h = int(cam_res_np[idx][1])
+    ntiles_x = (cam_w + tile_w - 1) // tile_w
+    ntiles_y = (cam_h + tile_h - 1) // tile_h
+    for ty in range(ntiles_y):
+      for tx in range(ntiles_x):
+        tile_info_list.append([idx, tx * tile_w, ty * tile_h])
+  ntiles = len(tile_info_list)
+  tile_info = np.array(tile_info_list, dtype=int) if ntiles > 0 else np.zeros((1, 3), dtype=int)
 
   rc = types.RenderContext(
     nrender=ncam,
@@ -2888,6 +2893,7 @@ def create_render_context(
     group=wp.zeros(nworld * (bvh_ngeom + len(flex_geom_flexid)), dtype=int),
     group_root=wp.zeros(nworld, dtype=int),
     ray=ray,
+    ray_adr=wp.array(ray_adr, dtype=int),
     rgb_data=wp.zeros((nworld, ri), dtype=wp.uint32),
     rgb_adr=wp.array(rgb_adr, dtype=int),
     depth_data=wp.zeros((nworld, di), dtype=wp.float32),
@@ -2902,11 +2908,8 @@ def create_render_context(
     # packet raytracing
     tile_h=tile_h,
     tile_w=tile_w,
-    ntiles_h=ntiles_h,
-    ntiles_w=ntiles_w,
-    rgb_out_tiled=rgb_out_tiled,
-    depth_out_tiled=depth_out_tiled,
-    seg_out_tiled=seg_out_tiled,
+    ntiles=ntiles,
+    tile_info=wp.array(tile_info, dtype=wp.vec3i),
   )
 
   bvh.build_scene_bvh(mjm, mjd, rc, nworld)

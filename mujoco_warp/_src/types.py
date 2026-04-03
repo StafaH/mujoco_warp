@@ -1972,6 +1972,7 @@ class RenderContext:
   group: array("*", int)
   group_root: array("*", int)
   ray: array("*", wp.vec3)
+  ray_adr: array("ncam", int)
   rgb_data: array("*", wp.uint32)
   rgb_adr: array("ncam", int)
   depth_data: array("*", wp.float32)
@@ -1987,8 +1988,5 @@ class RenderContext:
   # packet raytracing
   tile_h: int
   tile_w: int
-  ntiles_h: int
-  ntiles_w: int
-  rgb_out_tiled: array("nworld", "nrender", "*", "*", wp.uint32)
-  depth_out_tiled: array("nworld", "nrender", "*", "*", float)
-  seg_out_tiled: array("nworld", "nrender", "*", "*", int)
+  ntiles: int
+  tile_info: array("*", wp.vec3i)

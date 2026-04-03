@@ -839,19 +839,20 @@ def tile_render(m: Model, d: Data, rc: RenderContext):
   """Render the current frame using raypacket tracing.
 
   This renderer uses a two-pass approach:
-  1. Occupancy Pass: Group rays into packets, forming a bundle of rays from a square tile 
+  1. Occupancy Pass: Group rays into packets, forming a bundle of rays from a square tile
   patch of the output image to create an AABB for each packet.
   Query the scene BVH with this AABB to find the geometries that intersect the bundle.
   Store the results in an occupancy map, allowing for up to 4 primitives to be stored.
 
-  2. Render Pass: Launch a kernel to render each packet. For packets <= 4 primitives, we can unroll the loop and compute the intersection directly. For packets > 4 primitives, it is more efficient to run the full BVH query for each ray again.
+  2. Render Pass: Launch a kernel to render each packet. For packets <= 4 primitives,
+  we can unroll the loop and compute the intersection directly. For packets > 4 primitives
+  it is more efficient to run the full BVH query for each ray again.
   """
+  rc.rgb_data.fill_(rc.background_color)
+  rc.depth_data.fill_(0.0)
+  rc.seg_data.fill_(-1)
 
-  rc.rgb_out_tiled.fill_(rc.background_color)
-  rc.depth_out_tiled.fill_(0.0)
-  rc.seg_out_tiled.fill_(-1)
-
-  occupancy = wp.zeros((d.nworld, rc.nrender, rc.ntiles_h * rc.ntiles_w), dtype=wp.vec4i)
+  occupancy = wp.zeros((d.nworld, rc.ntiles), dtype=wp.vec4i)
 
   @wp.kernel(module="unique", enable_backward=False)
   def _raypacket_occupancy_kernel(
@@ -869,35 +870,41 @@ def tile_render(m: Model, d: Data, rc: RenderContext):
     render_depth: wp.array(dtype=bool),
     render_seg: wp.array(dtype=bool),
     ray: wp.array(dtype=wp.vec3),
+    ray_adr: wp.array(dtype=int),
+    tile_info: wp.array(dtype=wp.vec3i),
     tile_h: int,
     tile_w: int,
-    ntiles_w: int,
     # Out:
-    occupancy_out: wp.array3d(dtype=wp.vec4i),
+    occupancy_out: wp.array2d(dtype=wp.vec4i),
   ):
     """Compute raypacket occupancy by AABB query against the scene BVH."""
-    worldid, camid, tileid = wp.tid()
+    worldid, tileid = wp.tid()
 
-    # Skip disabled cameras - mark as overflow to ensure they're skipped in render pass
+    tile = tile_info[tileid]
+    camid = tile[0]
+    tile_x = tile[1]
+    tile_y = tile[2]
+
+    # Skip disabled cameras - mark as empty to ensure they're skipped in render pass
     if not render_rgb[camid] and not render_depth[camid] and not render_seg[camid]:
-      occupancy_out[worldid, camid, tileid] = wp.vec4i(-2, -1, -1, -1)
+      occupancy_out[worldid, tileid] = wp.vec4i(-1, -1, -1, -1)
       return
 
     mujoco_camid = cam_id_map[camid]
 
-    tile_col = tileid % ntiles_w
-    tile_row = tileid // ntiles_w
+    img_w = cam_res[camid][0]
+    img_h = cam_res[camid][1]
 
     # Compute pixel coordinates of tile corners, clamped to image bounds
-    px = wp.vec2i(tile_col * tile_w, tile_row * tile_h)
-    px1 = wp.min(px + wp.vec2i(tile_w - 1, tile_h - 1), cam_res[camid] - wp.vec2i(1, 1))
+    corner0 = wp.vec2i(tile_x, tile_y)
+    corner1 = wp.min(corner0 + wp.vec2i(tile_w - 1, tile_h - 1), wp.vec2i(img_w - 1, img_h - 1))
 
-    ray_offset = camid * cam_res[camid][1] * cam_res[camid][0]
+    ray_offset = ray_adr[camid]
 
-    id_tl = ray_offset + px[1] * cam_res[camid][0] + px[0]
-    id_tr = ray_offset + px[1] * cam_res[camid][0] + px1[0]
-    id_bl = ray_offset + px[1] * cam_res[camid][0] + px[0]
-    id_br = ray_offset + px[1] * cam_res[camid][0] + px1[0]
+    id_tl = ray_offset + corner0[1] * img_w + corner0[0]
+    id_tr = ray_offset + corner0[1] * img_w + corner1[0]
+    id_bl = ray_offset + corner1[1] * img_w + corner0[0]
+    id_br = ray_offset + corner1[1] * img_w + corner1[0]
 
     cam_origin = cam_xpos[worldid, mujoco_camid]
     cam_rot = cam_xmat[worldid, mujoco_camid]
@@ -919,12 +926,18 @@ def tile_render(m: Model, d: Data, rc: RenderContext):
     far_bl = cam_origin + dir_bl * max_t
     far_br = cam_origin + dir_br * max_t
 
-    lower = wp.min(wp.min(wp.min(wp.min(near_tl, near_tr), wp.min(near_bl, near_br)),
-                          wp.min(wp.min(far_tl, far_tr), wp.min(far_bl, far_br))),
-                   cam_origin)
-    upper = wp.max(wp.max(wp.max(wp.max(near_tl, near_tr), wp.max(near_bl, near_br)),
-                          wp.max(wp.max(far_tl, far_tr), wp.max(far_bl, far_br))),
-                   cam_origin)
+    lower = wp.min(
+      wp.min(
+        wp.min(wp.min(near_tl, near_tr), wp.min(near_bl, near_br)), wp.min(wp.min(far_tl, far_tr), wp.min(far_bl, far_br))
+      ),
+      cam_origin,
+    )
+    upper = wp.max(
+      wp.max(
+        wp.max(wp.max(near_tl, near_tr), wp.max(near_bl, near_br)), wp.max(wp.max(far_tl, far_tr), wp.max(far_bl, far_br))
+      ),
+      cam_origin,
+    )
 
     query = wp.bvh_query_aabb(bvh_id, lower, upper, group_root[worldid])
     bounds_nr = int(0)
@@ -941,8 +954,7 @@ def tile_render(m: Model, d: Data, rc: RenderContext):
 
     if hit_count > 4:
       result = wp.vec4i(-2, -1, -1, -1)
-    occupancy_out[worldid, camid, tileid] = result
-
+    occupancy_out[worldid, tileid] = result
 
   @wp.kernel(module="unique", enable_backward=False)
   def _raypacket_render_megakernel(
@@ -995,15 +1007,19 @@ def tile_render(m: Model, d: Data, rc: RenderContext):
     flex_geom_flexid: wp.array(dtype=int),
     flex_geom_edgeid: wp.array(dtype=int),
     textures: wp.array(dtype=wp.Texture2D),
+    tile_info: wp.array(dtype=wp.vec3i),
+    ray_adr: wp.array(dtype=int),
+    rgb_adr: wp.array(dtype=int),
+    depth_adr: wp.array(dtype=int),
+    seg_adr: wp.array(dtype=int),
     tile_h: int,
     tile_w: int,
-    ntiles_w: int,
-    total_tiles: int,
-    occupancy: wp.array3d(dtype=wp.vec4i),
+    ntiles: int,
+    occupancy: wp.array2d(dtype=wp.vec4i),
     # Out:
-    rgb_out: wp.array4d(dtype=wp.uint32),
-    depth_out: wp.array4d(dtype=float),
-    seg_out: wp.array4d(dtype=int),
+    rgb_out: wp.array2d(dtype=wp.uint32),
+    depth_out: wp.array2d(dtype=float),
+    seg_out: wp.array2d(dtype=int),
   ):
     """Render pixels using raypacket occupancy optimization.
 
@@ -1013,45 +1029,45 @@ def tile_render(m: Model, d: Data, rc: RenderContext):
     tid = wp.tid()
 
     pixels_per_tile = tile_h * tile_w
-    tile_u = tid % pixels_per_tile
-    tile_v = tid // pixels_per_tile
+    local_idx = tid % pixels_per_tile
+    global_tile_idx = tid // pixels_per_tile
 
-    tiles_per_world = nrender * total_tiles
-    worldid = tile_v // tiles_per_world
-    remainder = tile_v % tiles_per_world
-    camid = remainder // total_tiles
-    tileid = remainder % total_tiles
+    worldid = global_tile_idx // ntiles
+    tileid = global_tile_idx % ntiles
+
+    tile = tile_info[tileid]
+    camid = tile[0]
+    tile_x = tile[1]
+    tile_y = tile[2]
 
     # Local pixel position within the tile
-    u_local = tile_u % tile_w
-    v_local = tile_u // tile_w
+    local_x = local_idx % tile_w
+    local_y = local_idx // tile_w
 
-    # Tile position -> pixel coordinates
-    tile_col = tileid % ntiles_w
-    tile_row = tileid // ntiles_w
-    ix = tile_col * tile_w + u_local
-    iy = tile_row * tile_h + v_local
+    # Tile origin + local offset -> global pixel coordinates
+    ix = tile_x + local_x
+    iy = tile_y + local_y
 
-    mujoco_cam_id = cam_id_map[camid]
+    mujoco_camid = cam_id_map[camid]
 
-    img_w = cam_res[mujoco_cam_id][0]
-    img_h = cam_res[mujoco_cam_id][1]
+    img_w = cam_res[camid][0]
+    img_h = cam_res[camid][1]
 
     if ix >= img_w or iy >= img_h:
       return
 
-    occ = occupancy[worldid, camid, tileid]
+    occ = occupancy[worldid, tileid]
 
     if occ[0] == -1:
       return
 
     # Compute ray for this pixel
-    ray_offset = camid * img_h * img_w
-    ray_idx = ray_offset + iy * img_w + ix
+    pixel_idx = iy * img_w + ix
+    ray_idx = ray_adr[camid] + pixel_idx
 
     ray_dir_local = ray[ray_idx]
-    ray_dir_world = cam_xmat[worldid, mujoco_cam_id] @ ray_dir_local
-    ray_origin_world = cam_xpos[worldid, mujoco_cam_id]
+    ray_dir_world = cam_xmat[worldid, mujoco_camid] @ ray_dir_local
+    ray_origin_world = cam_xpos[worldid, mujoco_camid]
 
     geom_id = int(-1)
     dist = float(MJ_MAXVAL)
@@ -1064,15 +1080,29 @@ def tile_render(m: Model, d: Data, rc: RenderContext):
     if occ[0] == -2:
       # Overflow - full BVH traversal
       geom_id, dist, normal, bary_u, bary_v, face_idx, mesh_id = cast_ray(
-        geom_type, geom_dataid, geom_size,
-        flex_vertadr, flex_edge, flex_radius,
-        geom_xpos, geom_xmat, flexvert_xpos,
-        bvh_id, group_root[worldid], worldid,
-        bvh_ngeom, bvh_nflexgeom,
-        enabled_geom_ids, mesh_bvh_id, hfield_bvh_id,
-        flex_geom_flexid, flex_geom_edgeid,
-        flex_bvh_id, flex_group_root,
-        ray_origin_world, ray_dir_world,
+        geom_type,
+        geom_dataid,
+        geom_size,
+        flex_vertadr,
+        flex_edge,
+        flex_radius,
+        geom_xpos,
+        geom_xmat,
+        flexvert_xpos,
+        bvh_id,
+        group_root[worldid],
+        worldid,
+        bvh_ngeom,
+        bvh_nflexgeom,
+        enabled_geom_ids,
+        mesh_bvh_id,
+        hfield_bvh_id,
+        flex_geom_flexid,
+        flex_geom_edgeid,
+        flex_bvh_id,
+        flex_group_root,
+        ray_origin_world,
+        ray_dir_world,
       )
     else:
       # Fast path: 1-4 geoms, directly test each candidate
@@ -1091,51 +1121,70 @@ def tile_render(m: Model, d: Data, rc: RenderContext):
 
         if gtype == GeomType.PLANE:
           d, n = ray_plane(
-            geom_xpos[worldid, gi], geom_xmat[worldid, gi],
+            geom_xpos[worldid, gi],
+            geom_xmat[worldid, gi],
             geom_size[worldid % geom_size.shape[0], gi],
-            ray_origin_world, ray_dir_world,
+            ray_origin_world,
+            ray_dir_world,
           )
         if gtype == GeomType.HFIELD:
           d, n, u, v, f, _ = ray_mesh_with_bvh(
-            hfield_bvh_id, geom_dataid[gi],
-            geom_xpos[worldid, gi], geom_xmat[worldid, gi],
-            ray_origin_world, ray_dir_world, dist,
+            hfield_bvh_id,
+            geom_dataid[gi],
+            geom_xpos[worldid, gi],
+            geom_xmat[worldid, gi],
+            ray_origin_world,
+            ray_dir_world,
+            dist,
           )
         if gtype == GeomType.SPHERE:
           d, n = ray_sphere(
             geom_xpos[worldid, gi],
             geom_size[worldid % geom_size.shape[0], gi][0] * geom_size[worldid % geom_size.shape[0], gi][0],
-            ray_origin_world, ray_dir_world,
+            ray_origin_world,
+            ray_dir_world,
           )
         if gtype == GeomType.ELLIPSOID:
           d, n = ray_ellipsoid(
-            geom_xpos[worldid, gi], geom_xmat[worldid, gi],
+            geom_xpos[worldid, gi],
+            geom_xmat[worldid, gi],
             geom_size[worldid % geom_size.shape[0], gi],
-            ray_origin_world, ray_dir_world,
+            ray_origin_world,
+            ray_dir_world,
           )
         if gtype == GeomType.CAPSULE:
           d, n = ray_capsule(
-            geom_xpos[worldid, gi], geom_xmat[worldid, gi],
+            geom_xpos[worldid, gi],
+            geom_xmat[worldid, gi],
             geom_size[worldid % geom_size.shape[0], gi],
-            ray_origin_world, ray_dir_world,
+            ray_origin_world,
+            ray_dir_world,
           )
         if gtype == GeomType.CYLINDER:
           d, n = ray_cylinder(
-            geom_xpos[worldid, gi], geom_xmat[worldid, gi],
+            geom_xpos[worldid, gi],
+            geom_xmat[worldid, gi],
             geom_size[worldid % geom_size.shape[0], gi],
-            ray_origin_world, ray_dir_world,
+            ray_origin_world,
+            ray_dir_world,
           )
         if gtype == GeomType.BOX:
           d, all, n = ray_box(
-            geom_xpos[worldid, gi], geom_xmat[worldid, gi],
+            geom_xpos[worldid, gi],
+            geom_xmat[worldid, gi],
             geom_size[worldid % geom_size.shape[0], gi],
-            ray_origin_world, ray_dir_world,
+            ray_origin_world,
+            ray_dir_world,
           )
         if gtype == GeomType.MESH:
           d, n, u, v, f, m_id = ray_mesh_with_bvh(
-            mesh_bvh_id, geom_dataid[gi],
-            geom_xpos[worldid, gi], geom_xmat[worldid, gi],
-            ray_origin_world, ray_dir_world, dist,
+            mesh_bvh_id,
+            geom_dataid[gi],
+            geom_xpos[worldid, gi],
+            geom_xmat[worldid, gi],
+            ray_origin_world,
+            ray_dir_world,
+            dist,
           )
 
         if d >= 0.0 and d < dist:
@@ -1151,10 +1200,10 @@ def tile_render(m: Model, d: Data, rc: RenderContext):
       return
 
     if render_depth[camid]:
-      depth_out[worldid, camid, iy, ix] = dist * (-ray_dir_local[2])
+      depth_out[worldid, depth_adr[camid] + pixel_idx] = dist * (-ray_dir_local[2])
 
     if render_seg[camid]:
-      seg_out[worldid, camid, iy, ix] = geom_id
+      seg_out[worldid, seg_adr[camid] + pixel_idx] = geom_id
 
     if not render_rgb[camid]:
       return
@@ -1204,16 +1253,28 @@ def tile_render(m: Model, d: Data, rc: RenderContext):
 
     for l in range(wp.static(m.nlight)):
       light_contribution = compute_lighting(
-        geom_type, geom_dataid, geom_size,
-        flex_vertadr, flex_edge, flex_radius,
-        geom_xpos, geom_xmat, flexvert_xpos,
+        geom_type,
+        geom_dataid,
+        geom_size,
+        flex_vertadr,
+        flex_edge,
+        flex_radius,
+        geom_xpos,
+        geom_xmat,
+        flexvert_xpos,
         use_shadows,
-        bvh_id, group_root[worldid],
-        bvh_ngeom, bvh_nflexgeom,
-        enabled_geom_ids, worldid,
-        mesh_bvh_id, hfield_bvh_id,
-        flex_geom_flexid, flex_geom_edgeid,
-        flex_bvh_id, flex_group_root,
+        bvh_id,
+        group_root[worldid],
+        bvh_ngeom,
+        bvh_nflexgeom,
+        enabled_geom_ids,
+        worldid,
+        mesh_bvh_id,
+        hfield_bvh_id,
+        flex_geom_flexid,
+        flex_geom_edgeid,
+        flex_bvh_id,
+        flex_group_root,
         light_active[worldid % light_active.shape[0], l],
         light_type[worldid % light_type.shape[0], l],
         light_castshadow[worldid % light_castshadow.shape[0], l],
@@ -1227,17 +1288,16 @@ def tile_render(m: Model, d: Data, rc: RenderContext):
     hit_color = wp.min(result, wp.vec3(1.0, 1.0, 1.0))
     hit_color = wp.max(hit_color, wp.vec3(0.0, 0.0, 0.0))
 
-    rgb_out[worldid, camid, iy, ix] = pack_rgba_to_uint32(
+    rgb_out[worldid, rgb_adr[camid] + pixel_idx] = pack_rgba_to_uint32(
       hit_color[0] * 255.0,
       hit_color[1] * 255.0,
       hit_color[2] * 255.0,
       255.0,
     )
 
-
   wp.launch(
     kernel=_raypacket_occupancy_kernel,
-    dim=(d.nworld, rc.nrender, rc.ntiles_h * rc.ntiles_w),
+    dim=(d.nworld, rc.ntiles),
     inputs=[
       d.cam_xpos,
       d.cam_xmat,
@@ -1251,16 +1311,16 @@ def tile_render(m: Model, d: Data, rc: RenderContext):
       rc.render_depth,
       rc.render_seg,
       rc.ray,
+      rc.ray_adr,
+      rc.tile_info,
       rc.tile_h,
       rc.tile_w,
-      rc.ntiles_w,
     ],
     outputs=[occupancy],
   )
 
-  tiles_per_cam = rc.ntiles_h * rc.ntiles_w
   pixels_per_tile = rc.tile_h * rc.tile_w
-  total_threads = d.nworld * rc.nrender * tiles_per_cam * pixels_per_tile
+  total_threads = d.nworld * rc.ntiles * pixels_per_tile
   wp.launch(
     kernel=_raypacket_render_megakernel,
     dim=int(total_threads),
@@ -1311,16 +1371,20 @@ def tile_render(m: Model, d: Data, rc: RenderContext):
       rc.flex_geom_flexid,
       rc.flex_geom_edgeid,
       rc.textures,
+      rc.tile_info,
+      rc.ray_adr,
+      rc.rgb_adr,
+      rc.depth_adr,
+      rc.seg_adr,
       rc.tile_h,
       rc.tile_w,
-      rc.ntiles_w,
-      tiles_per_cam,
+      rc.ntiles,
       occupancy,
     ],
     outputs=[
-      rc.rgb_out_tiled,
-      rc.depth_out_tiled,
-      rc.seg_out_tiled,
+      rc.rgb_data,
+      rc.depth_data,
+      rc.seg_data,
     ],
     block_dim=int(pixels_per_tile),
   )
