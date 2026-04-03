@@ -53,9 +53,8 @@ SCENES = [
     ("Apptronik Heightfield", "benchmarks/apptronik_apollo/scene_hfield.xml"),
 ]
 
-# RESOLUTIONS = [(32, 32), (64, 64), (128, 128), (256, 256)]
-RESOLUTIONS = [(32, 32),]
-NWORLDS = [512, 1024, 2048, 4096, 8192]
+RESOLUTIONS = [(32, 32), (64, 64), (128, 128), (256, 256)]
+NWORLDS = [512, 1024, 2048, 4096]
 NSTEPS = 100
 
 NROWS, NCOLS = 4, 2
