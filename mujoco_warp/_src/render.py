@@ -59,11 +59,7 @@ def sample_texture(
   bary_v: float,
   f: int,
   mesh_id: int,
-  # Ray footprint (for LOD / mipmap selection):
-  dist: float,
-  ray_dir: wp.vec3,
-  normal: wp.vec3,
-  pixel_angular_size: float,
+  pixel_world_size: float,
 ) -> wp.vec3:
   uv = wp.vec2(0.0, 0.0)
 
@@ -86,18 +82,8 @@ def sample_texture(
   u = u - wp.floor(u)
   v = v - wp.floor(v)
 
-  # Estimate how many texels a single pixel covers on the hit surface, then
-  # convert to a mipmap LOD. We approximate the pixel footprint at the hit
-  # point as a disk whose diameter grows with distance and is stretched by
-  # the surface incidence angle. In texture space, that diameter is scaled
-  # by the texture resolution and texture repeat.
-  n_len = wp.length(normal)
-  n = normal / n_len if n_len > 0.0 else wp.vec3(0.0, 0.0, 1.0)
-  cos_incidence = wp.max(wp.abs(wp.dot(n, ray_dir)), 1.0e-4)
-  world_footprint = dist * pixel_angular_size / cos_incidence
-  tex_extent = wp.max(float(tex.width) * tex_repeat[0], float(tex.height) * tex_repeat[1])
-  rho = world_footprint * tex_extent
-  lod = wp.log(wp.max(rho, 1.0e-10)) / wp.log(2.0)
+  rho = pixel_world_size * wp.max(float(tex.width) * tex_repeat[0], float(tex.height) * tex_repeat[1])
+  lod = wp.log2(wp.max(rho, 1.0e-10))
 
   tex_color = wp.texture_sample(tex, wp.vec2(u, v), dtype=wp.vec4, lod=lod)
   return wp.vec3(tex_color[0], tex_color[1], tex_color[2])
@@ -716,13 +702,10 @@ def render(m: Model, d: Data, rc: RenderContext):
         if mat_id >= 0:
           tex_id = mat_texid[worldid % mat_texid.shape[0], mat_id, 1]
           if tex_id >= 0:
-            # Angular size of a single pixel along the vertical axis, used
-            # to estimate the ray's footprint at the hit point for mipmap
-            # LOD selection. Perspective-camera approximation only;
-            # orthographic cameras sample the base mip level.
-            img_h_for_lod = cam_res[cam_idx][1]
+            # Approximate ray cone diameter at the hit point, used as the
+            # per-pixel footprint for mipmap LOD selection.
             fovy_rad = cam_fovy[worldid % cam_fovy.shape[0], mujoco_cam_id] * wp.static(wp.pi / 180.0)
-            pixel_angular_size = fovy_rad / float(img_h_for_lod)
+            pixel_world_size = dist * fovy_rad / float(cam_res[cam_idx][1])
             tex_color = sample_texture(
               geom_type,
               mesh_faceadr,
@@ -739,10 +722,7 @@ def render(m: Model, d: Data, rc: RenderContext):
               v,
               f,
               mesh_id,
-              dist,
-              ray_dir_world,
-              normal,
-              pixel_angular_size,
+              pixel_world_size,
             )
             base_color = wp.cw_mul(base_color, tex_color)
 
