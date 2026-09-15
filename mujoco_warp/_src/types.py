@@ -2600,6 +2600,7 @@ class RenderContext:
       or the pixel is shadowed. When False the second per-light loop for
       ambient is removed at compile time. Headlight ambient and the no-light
       fallback are controlled by `use_ambient_lighting`.
+    backend: Ray tracing backend: "warp" or "optix".
     geom_ray_types: tuple of GeomType int values present in the scene, used to
       statically eliminate unused intersection branches in the ray-cast kernels.
     splat_position: Splat centers in world coordinates (nsplat, 3)
@@ -2695,3 +2696,5 @@ class RenderContext:
   splat_count: int
   geom_ray_types: tuple = ()
   _megakernel: Optional[wp.Kernel] = None
+  backend: str = "warp"
+  _optix: Optional[object] = None

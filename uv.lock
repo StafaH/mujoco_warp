@@ -773,6 +773,9 @@ dev = [
     { name = "ruff" },
     { name = "warp-lang" },
 ]
+optix = [
+    { name = "warp-lang" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -793,8 +796,9 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "warp-lang", specifier = ">=1.15", index = "https://pypi.nvidia.com/" },
     { name = "warp-lang", marker = "extra == 'dev'", specifier = ">=1.15", index = "https://pypi.nvidia.com/" },
+    { name = "warp-lang", marker = "extra == 'optix'", specifier = ">=1.15,<1.16", index = "https://pypi.nvidia.com/" },
 ]
-provides-extras = ["dev", "cpu", "cuda"]
+provides-extras = ["optix", "dev", "cpu", "cuda"]
 
 [[package]]
 name = "nodeenv"

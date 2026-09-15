@@ -1,0 +1,875 @@
+{
+  "traversal_only": {
+    "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+    "warp": "1.15.0",
+    "mujoco": "3.12.1",
+    "resolution": [
+      128,
+      128
+    ],
+    "shadows": true,
+    "mode": "eager CUDA-event latency including host submission",
+    "iterations": 10,
+    "repeats": 7,
+    "results": [
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "warp",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 0.2833717903122306,
+        "parity": {},
+        "render": {
+          "median_ms": 8.925296020507812,
+          "min_ms": 8.914377593994141,
+          "max_ms": 8.939759826660156
+        },
+        "refit": {
+          "median_ms": 0.030364799499511718,
+          "min_ms": 0.02998400032520294,
+          "max_ms": 0.03054719865322113
+        },
+        "frame": {
+          "median_ms": 8.95006103515625,
+          "min_ms": 8.944003295898437,
+          "max_ms": 8.96065902709961
+        }
+      },
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "optix",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 2.8046777844429016,
+        "parity": {
+          "rgb_max_channel_error": 109,
+          "depth_max_abs_error": 0.0063803791999816895,
+          "segmentation_pixel_mismatches": 256
+        },
+        "render": {
+          "median_ms": 3.61212158203125,
+          "min_ms": 3.6065696716308593,
+          "max_ms": 3.626224136352539
+        },
+        "refit": {
+          "median_ms": 0.03018240034580231,
+          "min_ms": 0.030070400238037108,
+          "max_ms": 0.03061760067939758
+        },
+        "frame": {
+          "median_ms": 3.651260757446289,
+          "min_ms": 3.6479393005371095,
+          "max_ms": 3.6516799926757812
+        }
+      }
+    ]
+  },
+  "minimal_shadow_payload": {
+    "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+    "warp": "1.15.0",
+    "mujoco": "3.12.1",
+    "resolution": [
+      128,
+      128
+    ],
+    "shadows": true,
+    "mode": "eager CUDA-event latency including host submission",
+    "iterations": 10,
+    "repeats": 7,
+    "results": [
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "warp",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 0.2840933883562684,
+        "parity": {},
+        "render": {
+          "median_ms": 8.92154541015625,
+          "min_ms": 8.907408142089844,
+          "max_ms": 8.95118408203125
+        },
+        "refit": {
+          "median_ms": 0.03028480112552643,
+          "min_ms": 0.030160000920295714,
+          "max_ms": 0.03052479922771454
+        },
+        "frame": {
+          "median_ms": 8.947135925292969,
+          "min_ms": 8.937696075439453,
+          "max_ms": 8.963906860351562
+        }
+      },
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "optix",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 3.04125789180398,
+        "parity": {
+          "rgb_max_channel_error": 22,
+          "depth_max_abs_error": 0.0063803791999816895,
+          "segmentation_pixel_mismatches": 256
+        },
+        "render": {
+          "median_ms": 3.764246368408203,
+          "min_ms": 3.7516159057617187,
+          "max_ms": 3.7664833068847656
+        },
+        "refit": {
+          "median_ms": 0.030137598514556885,
+          "min_ms": 0.030060800909996032,
+          "max_ms": 0.030774399638175964
+        },
+        "frame": {
+          "median_ms": 3.8065921783447267,
+          "min_ms": 3.7923873901367187,
+          "max_ms": 3.8247360229492187
+        }
+      }
+    ]
+  },
+  "register_limit_64": {
+    "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+    "warp": "1.15.0",
+    "mujoco": "3.12.1",
+    "resolution": [
+      128,
+      128
+    ],
+    "shadows": true,
+    "mode": "eager CUDA-event latency including host submission",
+    "iterations": 10,
+    "repeats": 7,
+    "results": [
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "warp",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 0.2798636518418789,
+        "parity": {},
+        "render": {
+          "median_ms": 8.926399993896485,
+          "min_ms": 8.917350769042969,
+          "max_ms": 8.952582550048827
+        },
+        "refit": {
+          "median_ms": 0.030268800258636475,
+          "min_ms": 0.030070400238037108,
+          "max_ms": 0.030559998750686646
+        },
+        "frame": {
+          "median_ms": 8.964307403564453,
+          "min_ms": 8.950249481201173,
+          "max_ms": 8.97984619140625
+        }
+      },
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "optix",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 2.3301427410915494,
+        "parity": {
+          "rgb_max_channel_error": 22,
+          "depth_max_abs_error": 0.0063803791999816895,
+          "segmentation_pixel_mismatches": 256
+        },
+        "render": {
+          "median_ms": 3.781638336181641,
+          "min_ms": 3.766819381713867,
+          "max_ms": 3.7839328765869142
+        },
+        "refit": {
+          "median_ms": 0.030079999566078187,
+          "min_ms": 0.029977598786354066,
+          "max_ms": 0.030585598945617676
+        },
+        "frame": {
+          "median_ms": 3.815520095825195,
+          "min_ms": 3.812099075317383,
+          "max_ms": 3.81923828125
+        }
+      }
+    ]
+  },
+  "register_limit_96": {
+    "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+    "warp": "1.15.0",
+    "mujoco": "3.12.1",
+    "resolution": [
+      128,
+      128
+    ],
+    "shadows": true,
+    "mode": "eager CUDA-event latency including host submission",
+    "iterations": 10,
+    "repeats": 7,
+    "results": [
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "warp",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 0.2896394031122327,
+        "parity": {},
+        "render": {
+          "median_ms": 8.917190551757812,
+          "min_ms": 8.903858947753907,
+          "max_ms": 8.930178833007812
+        },
+        "refit": {
+          "median_ms": 0.030268800258636475,
+          "min_ms": 0.02988159954547882,
+          "max_ms": 0.030403199791908263
+        },
+        "frame": {
+          "median_ms": 8.950080108642577,
+          "min_ms": 8.926422119140625,
+          "max_ms": 8.960066986083984
+        }
+      },
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "optix",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 2.024973007850349,
+        "parity": {
+          "rgb_max_channel_error": 22,
+          "depth_max_abs_error": 0.0063803791999816895,
+          "segmentation_pixel_mismatches": 256
+        },
+        "render": {
+          "median_ms": 3.828540802001953,
+          "min_ms": 3.82108154296875,
+          "max_ms": 3.8367969512939455
+        },
+        "refit": {
+          "median_ms": 0.03022719919681549,
+          "min_ms": 0.029971200227737426,
+          "max_ms": 0.0305759996175766
+        },
+        "frame": {
+          "median_ms": 3.8665950775146483,
+          "min_ms": 3.86363525390625,
+          "max_ms": 3.8692031860351563
+        }
+      }
+    ]
+  },
+  "register_limit_128": {
+    "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+    "warp": "1.15.0",
+    "mujoco": "3.12.1",
+    "resolution": [
+      128,
+      128
+    ],
+    "shadows": true,
+    "mode": "eager CUDA-event latency including host submission",
+    "iterations": 10,
+    "repeats": 7,
+    "results": [
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "warp",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 0.28511001635342836,
+        "parity": {},
+        "render": {
+          "median_ms": 8.926054382324219,
+          "min_ms": 8.91006088256836,
+          "max_ms": 8.945398712158203
+        },
+        "refit": {
+          "median_ms": 0.030156800150871278,
+          "min_ms": 0.030063998699188233,
+          "max_ms": 0.0305759996175766
+        },
+        "frame": {
+          "median_ms": 8.94808349609375,
+          "min_ms": 8.939180755615235,
+          "max_ms": 8.965001678466797
+        }
+      },
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "optix",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 0.404838846065104,
+        "parity": {
+          "rgb_max_channel_error": 22,
+          "depth_max_abs_error": 0.0063803791999816895,
+          "segmentation_pixel_mismatches": 256
+        },
+        "render": {
+          "median_ms": 3.7678176879882814,
+          "min_ms": 3.7531360626220702,
+          "max_ms": 3.774729537963867
+        },
+        "refit": {
+          "median_ms": 0.030272001028060914,
+          "min_ms": 0.030079999566078187,
+          "max_ms": 0.030614399909973146
+        },
+        "frame": {
+          "median_ms": 3.7997409820556642,
+          "min_ms": 3.795644760131836,
+          "max_ms": 3.8033790588378906
+        }
+      }
+    ]
+  },
+  "interleave_4_worlds": {
+    "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+    "warp": "1.15.0",
+    "mujoco": "3.12.1",
+    "resolution": [
+      128,
+      128
+    ],
+    "shadows": true,
+    "mode": "eager CUDA-event latency including host submission",
+    "iterations": 10,
+    "repeats": 7,
+    "results": [
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "warp",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 0.285416666418314,
+        "parity": {},
+        "render": {
+          "median_ms": 8.915455627441407,
+          "min_ms": 8.909117126464844,
+          "max_ms": 8.932959747314452
+        },
+        "refit": {
+          "median_ms": 0.0302047997713089,
+          "min_ms": 0.030086401104927062,
+          "max_ms": 0.03120959997177124
+        },
+        "frame": {
+          "median_ms": 8.954057312011718,
+          "min_ms": 8.938857269287109,
+          "max_ms": 8.961414337158203
+        }
+      },
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "optix",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 2.684477524831891,
+        "parity": {
+          "rgb_max_channel_error": 22,
+          "depth_max_abs_error": 0.0063803791999816895,
+          "segmentation_pixel_mismatches": 256
+        },
+        "render": {
+          "median_ms": 5.377801513671875,
+          "min_ms": 5.353292846679688,
+          "max_ms": 5.385353469848633
+        },
+        "refit": {
+          "median_ms": 0.03022719919681549,
+          "min_ms": 0.029980799555778502,
+          "max_ms": 0.030428799986839294
+        },
+        "frame": {
+          "median_ms": 5.410089492797852,
+          "min_ms": 5.4063774108886715,
+          "max_ms": 5.445132827758789
+        }
+      }
+    ]
+  },
+  "interleave_16_worlds": {
+    "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+    "warp": "1.15.0",
+    "mujoco": "3.12.1",
+    "resolution": [
+      128,
+      128
+    ],
+    "shadows": true,
+    "mode": "eager CUDA-event latency including host submission",
+    "iterations": 10,
+    "repeats": 7,
+    "results": [
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "warp",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 0.28526352532207966,
+        "parity": {},
+        "render": {
+          "median_ms": 8.929993438720704,
+          "min_ms": 8.913545227050781,
+          "max_ms": 8.934976196289062
+        },
+        "refit": {
+          "median_ms": 0.030191999673843384,
+          "min_ms": 0.030086401104927062,
+          "max_ms": 0.031491199135780336
+        },
+        "frame": {
+          "median_ms": 8.961939239501953,
+          "min_ms": 8.945362854003907,
+          "max_ms": 8.974143981933594
+        }
+      },
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "optix",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 2.733988169580698,
+        "parity": {
+          "rgb_max_channel_error": 22,
+          "depth_max_abs_error": 0.0063803791999816895,
+          "segmentation_pixel_mismatches": 256
+        },
+        "render": {
+          "median_ms": 7.722707366943359,
+          "min_ms": 7.695980834960937,
+          "max_ms": 7.726617431640625
+        },
+        "refit": {
+          "median_ms": 0.030316799879074097,
+          "min_ms": 0.03017280101776123,
+          "max_ms": 0.03089280128479004
+        },
+        "frame": {
+          "median_ms": 7.75428466796875,
+          "min_ms": 7.74691162109375,
+          "max_ms": 7.756915283203125
+        }
+      }
+    ]
+  },
+  "interleave_32_worlds": {
+    "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+    "warp": "1.15.0",
+    "mujoco": "3.12.1",
+    "resolution": [
+      128,
+      128
+    ],
+    "shadows": true,
+    "mode": "eager CUDA-event latency including host submission",
+    "iterations": 10,
+    "repeats": 7,
+    "results": [
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "warp",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 0.27920608315616846,
+        "parity": {},
+        "render": {
+          "median_ms": 8.91901092529297,
+          "min_ms": 8.909677124023437,
+          "max_ms": 8.93246078491211
+        },
+        "refit": {
+          "median_ms": 0.030191999673843384,
+          "min_ms": 0.030083200335502623,
+          "max_ms": 0.030511999130249025
+        },
+        "frame": {
+          "median_ms": 8.953977966308594,
+          "min_ms": 8.937725067138672,
+          "max_ms": 8.973107147216798
+        }
+      },
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "optix",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 2.8025059392675757,
+        "parity": {
+          "rgb_max_channel_error": 22,
+          "depth_max_abs_error": 0.0063803791999816895,
+          "segmentation_pixel_mismatches": 256
+        },
+        "render": {
+          "median_ms": 6.809465789794922,
+          "min_ms": 6.775673675537109,
+          "max_ms": 6.811939239501953
+        },
+        "refit": {
+          "median_ms": 0.03028480112552643,
+          "min_ms": 0.03017919957637787,
+          "max_ms": 0.03055039942264557
+        },
+        "frame": {
+          "median_ms": 6.8404899597167965,
+          "min_ms": 6.832816314697266,
+          "max_ms": 6.865542602539063
+        }
+      }
+    ]
+  },
+  "overlapping_worlds": {
+    "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+    "warp": "1.15.0",
+    "mujoco": "3.12.1",
+    "resolution": [
+      128,
+      128
+    ],
+    "shadows": true,
+    "mode": "eager CUDA-event latency including host submission",
+    "iterations": 10,
+    "repeats": 7,
+    "results": [
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "warp",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 0.2842153422534466,
+        "parity": {},
+        "render": {
+          "median_ms": 8.921939086914062,
+          "min_ms": 8.91798095703125,
+          "max_ms": 8.93976287841797
+        },
+        "refit": {
+          "median_ms": 0.030083200335502623,
+          "min_ms": 0.02996479868888855,
+          "max_ms": 0.030611199140548707
+        },
+        "frame": {
+          "median_ms": 8.943238067626954,
+          "min_ms": 8.93707504272461,
+          "max_ms": 8.948143768310548
+        }
+      },
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "optix",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 1.42614568118006,
+        "parity": {
+          "rgb_max_channel_error": 22,
+          "depth_max_abs_error": 0.0063803791999816895,
+          "segmentation_pixel_mismatches": 256
+        },
+        "render": {
+          "median_ms": 3.323062515258789,
+          "min_ms": 3.3105438232421873,
+          "max_ms": 3.324982452392578
+        },
+        "refit": {
+          "median_ms": 0.47651519775390627,
+          "min_ms": 0.47170557975769045,
+          "max_ms": 0.47837438583374026
+        },
+        "frame": {
+          "median_ms": 3.788217544555664,
+          "min_ms": 3.7825984954833984,
+          "max_ms": 3.796681594848633
+        }
+      }
+    ]
+  },
+  "groups_of_eight": {
+    "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+    "warp": "1.15.0",
+    "mujoco": "3.12.1",
+    "resolution": [
+      128,
+      128
+    ],
+    "shadows": true,
+    "mode": "eager CUDA-event latency including host submission",
+    "iterations": 10,
+    "repeats": 7,
+    "results": [
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "warp",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 0.2864671070128679,
+        "parity": {},
+        "render": {
+          "median_ms": 8.943257904052734,
+          "min_ms": 8.926812744140625,
+          "max_ms": 8.963488006591797
+        },
+        "refit": {
+          "median_ms": 0.030160000920295714,
+          "min_ms": 0.030076798796653748,
+          "max_ms": 0.030272001028060914
+        },
+        "frame": {
+          "median_ms": 8.94692153930664,
+          "min_ms": 8.936268615722657,
+          "max_ms": 8.990873718261719
+        }
+      },
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "optix",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 1.4406559271737933,
+        "parity": {
+          "rgb_max_channel_error": 22,
+          "depth_max_abs_error": 0.0063803791999816895,
+          "segmentation_pixel_mismatches": 256
+        },
+        "render": {
+          "median_ms": 0.5295775890350342,
+          "min_ms": 0.5287487983703614,
+          "max_ms": 0.5320352077484131
+        },
+        "refit": {
+          "median_ms": 2.34836483001709,
+          "min_ms": 2.3417728424072264,
+          "max_ms": 2.3578176498413086
+        },
+        "frame": {
+          "median_ms": 2.883238410949707,
+          "min_ms": 2.878915214538574,
+          "max_ms": 2.887049674987793
+        }
+      }
+    ]
+  },
+  "spatial_packing_pruned_hits": {
+    "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+    "warp": "1.15.0",
+    "mujoco": "3.12.1",
+    "resolution": [
+      128,
+      128
+    ],
+    "shadows": true,
+    "mode": "eager CUDA-event latency including host submission",
+    "iterations": 10,
+    "repeats": 7,
+    "results": [
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "warp",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 0.27875211276113987,
+        "parity": {},
+        "render": {
+          "median_ms": 8.922704315185547,
+          "min_ms": 8.90552978515625,
+          "max_ms": 8.931171417236328
+        },
+        "refit": {
+          "median_ms": 0.030188798904418945,
+          "min_ms": 0.02998720109462738,
+          "max_ms": 0.030291199684143066
+        },
+        "frame": {
+          "median_ms": 8.9560546875,
+          "min_ms": 8.947151947021485,
+          "max_ms": 8.978781127929688
+        }
+      },
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "optix",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 1.4475404536351562,
+        "parity": {
+          "rgb_max_channel_error": 81,
+          "depth_max_abs_error": 0.47839468717575073,
+          "segmentation_pixel_mismatches": 274
+        },
+        "render": {
+          "median_ms": 0.7436639785766601,
+          "min_ms": 0.7419583797454834,
+          "max_ms": 0.7468736171722412
+        },
+        "refit": {
+          "median_ms": 0.2268224000930786,
+          "min_ms": 0.22565760612487792,
+          "max_ms": 0.2302720069885254
+        },
+        "frame": {
+          "median_ms": 0.9655936241149903,
+          "min_ms": 0.9616288185119629,
+          "max_ms": 0.967897605895996
+        }
+      }
+    ]
+  },
+  "worlds_as_motion_keys": {
+    "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+    "warp": "1.15.0",
+    "mujoco": "3.12.1",
+    "resolution": [
+      128,
+      128
+    ],
+    "shadows": true,
+    "mode": "eager CUDA-event latency including host submission",
+    "iterations": 10,
+    "repeats": 7,
+    "results": [
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "warp",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 0.28400594741106033,
+        "parity": {},
+        "render": {
+          "median_ms": 8.925727844238281,
+          "min_ms": 8.919673919677734,
+          "max_ms": 8.947551727294922
+        },
+        "refit": {
+          "median_ms": 0.030070400238037108,
+          "min_ms": 0.029955199360847472,
+          "max_ms": 0.030323201417922975
+        },
+        "frame": {
+          "median_ms": 8.964300537109375,
+          "min_ms": 8.957097625732422,
+          "max_ms": 8.978880310058594
+        }
+      },
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "optix",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 2.089040966704488,
+        "parity": {
+          "rgb_max_channel_error": 22,
+          "depth_max_abs_error": 0.006380438804626465,
+          "segmentation_pixel_mismatches": 256
+        },
+        "render": {
+          "median_ms": 0.7472383975982666,
+          "min_ms": 0.7455039978027344,
+          "max_ms": 0.7717472076416015
+        },
+        "refit": {
+          "median_ms": 0.5940864086151123,
+          "min_ms": 0.5892000198364258,
+          "max_ms": 0.5953279972076416
+        },
+        "frame": {
+          "median_ms": 1.334828758239746,
+          "min_ms": 1.3323936462402344,
+          "max_ms": 1.3501791954040527
+        }
+      }
+    ]
+  },
+  "motion_keys_diverse_worlds": {
+    "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+    "warp": "1.15.0",
+    "mujoco": "3.12.1",
+    "resolution": [
+      128,
+      128
+    ],
+    "shadows": true,
+    "pose_noise_radians": 0.2,
+    "seed": 0,
+    "mode": "eager CUDA-event latency including host submission",
+    "iterations": 10,
+    "repeats": 7,
+    "results": [
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "warp",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 0.28219636529684067,
+        "parity": {},
+        "render": {
+          "median_ms": 9.716166687011718,
+          "min_ms": 9.705404663085938,
+          "max_ms": 9.730867004394531
+        },
+        "refit": {
+          "median_ms": 0.03020159900188446,
+          "min_ms": 0.030057600140571593,
+          "max_ms": 0.030531200766563415
+        },
+        "frame": {
+          "median_ms": 9.750351715087891,
+          "min_ms": 9.73677749633789,
+          "max_ms": 9.755023956298828
+        }
+      },
+      {
+        "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+        "worlds": 128,
+        "backend": "optix",
+        "ngeoms": 204,
+        "mesh_triangles": 64609,
+        "setup_seconds": 0.7849909327924252,
+        "parity": {
+          "rgb_max_channel_error": 240,
+          "depth_max_abs_error": 1.9757736921310425,
+          "segmentation_pixel_mismatches": 366
+        },
+        "render": {
+          "median_ms": 2.6366687774658204,
+          "min_ms": 2.6296831130981446,
+          "max_ms": 2.644668769836426
+        },
+        "refit": {
+          "median_ms": 0.5223775863647461,
+          "min_ms": 0.5200799942016602,
+          "max_ms": 0.5253407955169678
+        },
+        "frame": {
+          "median_ms": 3.1600128173828126,
+          "min_ms": 3.151260757446289,
+          "max_ms": 3.1645343780517576
+        }
+      }
+    ]
+  }
+}

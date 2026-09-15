@@ -314,6 +314,10 @@ def _compute_flex_bvh_bounds(
 def build_scene_bvh(mjm: mujoco.MjModel, mjd: mujoco.MjData, rc: RenderContext, nworld: int):
   """Build a global BVH for all geometries in all worlds."""
   total_bvh_size = rc.bvh_ngeom + rc.bvh_nflexgeom
+  if total_bvh_size == 0:
+    rc.bvh_id = wp.uint64(0)
+    rc.group_root.fill_(-1)
+    return
 
   geom_type = wp.array(mjm.geom_type, dtype=int)
   geom_dataid = wp.array(np.tile(mjm.geom_dataid, (nworld, 1)), dtype=int)
@@ -381,6 +385,8 @@ def build_scene_bvh(mjm: mujoco.MjModel, mjd: mujoco.MjData, rc: RenderContext, 
 
 def refit_scene_bvh(m: Model, d: Data, rc: RenderContext):
   total_bvh_size = rc.bvh_ngeom + rc.bvh_nflexgeom
+  if total_bvh_size == 0:
+    return
 
   wp.launch(
     kernel=_compute_bvh_bounds,
@@ -422,6 +428,8 @@ def refit_scene_bvh(m: Model, d: Data, rc: RenderContext):
     )
 
   rc.bvh.refit()
+  if rc.backend == "optix":
+    rc._optix.refit(m, d)
 
 
 def build_mesh_bvh(

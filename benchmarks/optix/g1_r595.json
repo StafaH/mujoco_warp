@@ -1,0 +1,231 @@
+{
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "warp": "1.15.0",
+  "mujoco": "3.12.1",
+  "resolution": [
+    64,
+    64
+  ],
+  "shadows": false,
+  "depth": false,
+  "segmentation": false,
+  "cameras": null,
+  "replay": "benchmarks/unitree_g1/shuffle_dance.npz",
+  "pose_noise_radians": 0.0,
+  "seed": 0,
+  "mode": "eager CUDA-event latency including host submission",
+  "iterations": 10,
+  "repeats": 7,
+  "results": [
+    {
+      "model": "/home/mhaiderbhai/.cache/mjwarp-benchmark-assets/unitree_g1_hfield_render/scene_hfield.xml",
+      "worlds": 1,
+      "backend": "warp",
+      "ngeoms": 69,
+      "mesh_triangles": 393270,
+      "hardware_traversal": false,
+      "setup_seconds": 2.011716723000063,
+      "parity": {},
+      "render": {
+        "median_ms": 0.19893120527267455,
+        "min_ms": 0.19852160215377807,
+        "max_ms": 0.2002880096435547
+      },
+      "render_graph": {
+        "median_ms": 0.19277440309524535,
+        "min_ms": 0.19227839708328248,
+        "max_ms": 0.19288959503173828
+      },
+      "refit": {
+        "median_ms": 0.020377600193023683,
+        "min_ms": 0.02025599926710129,
+        "max_ms": 0.02179519981145859
+      },
+      "refit_graph": {
+        "median_ms": 0.014428800344467163,
+        "min_ms": 0.014294399321079254,
+        "max_ms": 0.014473600685596466
+      },
+      "frame": {
+        "median_ms": 0.21203200817108153,
+        "min_ms": 0.2115231990814209,
+        "max_ms": 0.21241919994354247
+      },
+      "frame_graph": {
+        "median_ms": 0.20538880825042724,
+        "min_ms": 0.20506880283355713,
+        "max_ms": 0.2056447982788086
+      }
+    },
+    {
+      "model": "/home/mhaiderbhai/.cache/mjwarp-benchmark-assets/unitree_g1_hfield_render/scene_hfield.xml",
+      "worlds": 1,
+      "backend": "optix",
+      "ngeoms": 69,
+      "mesh_triangles": 393270,
+      "hardware_traversal": true,
+      "setup_seconds": 0.9301835240000855,
+      "parity": {
+        "rgb_max_channel_error": 0,
+        "depth_max_abs_error": null,
+        "segmentation_pixel_mismatches": null
+      },
+      "render": {
+        "median_ms": 0.1277408003807068,
+        "min_ms": 0.1264575958251953,
+        "max_ms": 0.12844159603118896
+      },
+      "refit": {
+        "median_ms": 0.03822399973869324,
+        "min_ms": 0.037529599666595456,
+        "max_ms": 0.03935680091381073
+      },
+      "frame": {
+        "median_ms": 0.15338560342788696,
+        "min_ms": 0.15025919675827026,
+        "max_ms": 0.15806080102920533
+      }
+    },
+    {
+      "model": "/home/mhaiderbhai/.cache/mjwarp-benchmark-assets/unitree_g1_hfield_render/scene_hfield.xml",
+      "worlds": 128,
+      "backend": "warp",
+      "ngeoms": 69,
+      "mesh_triangles": 393270,
+      "hardware_traversal": false,
+      "setup_seconds": 0.18977727299989056,
+      "parity": {},
+      "render": {
+        "median_ms": 1.1668095588684082,
+        "min_ms": 1.1646240234375,
+        "max_ms": 1.1688639640808105
+      },
+      "render_graph": {
+        "median_ms": 1.1598400115966796,
+        "min_ms": 1.159062385559082,
+        "max_ms": 1.1636480331420898
+      },
+      "refit": {
+        "median_ms": 0.021699200570583343,
+        "min_ms": 0.021388800442218782,
+        "max_ms": 0.022233599424362184
+      },
+      "refit_graph": {
+        "median_ms": 0.02128639966249466,
+        "min_ms": 0.021081599593162536,
+        "max_ms": 0.021862399578094483
+      },
+      "frame": {
+        "median_ms": 1.1881152153015138,
+        "min_ms": 1.1848640441894531,
+        "max_ms": 1.1939776420593262
+      },
+      "frame_graph": {
+        "median_ms": 1.1462464332580566,
+        "min_ms": 1.1405887603759766,
+        "max_ms": 1.1737664222717286
+      }
+    },
+    {
+      "model": "/home/mhaiderbhai/.cache/mjwarp-benchmark-assets/unitree_g1_hfield_render/scene_hfield.xml",
+      "worlds": 128,
+      "backend": "optix",
+      "ngeoms": 69,
+      "mesh_triangles": 393270,
+      "hardware_traversal": true,
+      "setup_seconds": 0.8673166670000683,
+      "parity": {
+        "rgb_max_channel_error": 19,
+        "depth_max_abs_error": null,
+        "segmentation_pixel_mismatches": null
+      },
+      "render": {
+        "median_ms": 0.23320000171661376,
+        "min_ms": 0.23164799213409423,
+        "max_ms": 0.23432319164276122
+      },
+      "refit": {
+        "median_ms": 0.03877440094947815,
+        "min_ms": 0.038464000821113585,
+        "max_ms": 0.04108799993991852
+      },
+      "frame": {
+        "median_ms": 0.2603935956954956,
+        "min_ms": 0.2591200113296509,
+        "max_ms": 0.2616192102432251
+      }
+    },
+    {
+      "model": "/home/mhaiderbhai/.cache/mjwarp-benchmark-assets/unitree_g1_hfield_render/scene_hfield.xml",
+      "worlds": 8192,
+      "backend": "warp",
+      "ngeoms": 69,
+      "mesh_triangles": 393270,
+      "hardware_traversal": false,
+      "setup_seconds": 0.31902684299984685,
+      "parity": {},
+      "render": {
+        "median_ms": 60.95505981445312,
+        "min_ms": 60.928277587890626,
+        "max_ms": 61.79033203125
+      },
+      "render_graph": {
+        "median_ms": 61.129095458984374,
+        "min_ms": 60.90855102539062,
+        "max_ms": 61.13912353515625
+      },
+      "refit": {
+        "median_ms": 0.04963200092315674,
+        "min_ms": 0.04933120012283325,
+        "max_ms": 0.04996159970760346
+      },
+      "refit_graph": {
+        "median_ms": 0.04952960014343262,
+        "min_ms": 0.04914880096912384,
+        "max_ms": 0.04981760084629059
+      },
+      "frame": {
+        "median_ms": 61.11268310546875,
+        "min_ms": 61.08357543945313,
+        "max_ms": 61.119677734375
+      },
+      "frame_graph": {
+        "median_ms": 61.087957763671874,
+        "min_ms": 61.07900390625,
+        "max_ms": 61.10322875976563
+      }
+    },
+    {
+      "model": "/home/mhaiderbhai/.cache/mjwarp-benchmark-assets/unitree_g1_hfield_render/scene_hfield.xml",
+      "worlds": 8192,
+      "backend": "optix",
+      "ngeoms": 69,
+      "mesh_triangles": 393270,
+      "hardware_traversal": true,
+      "setup_seconds": 0.9442603710001549,
+      "parity": {
+        "rgb_max_channel_error": 71,
+        "depth_max_abs_error": null,
+        "segmentation_pixel_mismatches": null
+      },
+      "render": {
+        "median_ms": 4.05928955078125,
+        "min_ms": 4.007148742675781,
+        "max_ms": 4.075360107421875
+      },
+      "refit": {
+        "median_ms": 0.09151039719581604,
+        "min_ms": 0.09057279825210571,
+        "max_ms": 0.09201920032501221
+      },
+      "frame": {
+        "median_ms": 4.028224182128906,
+        "min_ms": 3.987366485595703,
+        "max_ms": 4.0430561065673825
+      }
+    }
+  ],
+  "driver": "595.91.07",
+  "optix_sdk": "9.0.0",
+  "pose_mode": "fixed initial pose, identical worlds; refit and instance build every frame"
+}

@@ -49,6 +49,8 @@ warp-lang = {index = "nvidia"}
 mujoco = {index = "mujoco"}
 
 [project.optional-dependencies]
+# The OptiX adapter uses Warp's code-generation ABI.
+optix = ["warp-lang>=1.15,<1.16"]
 dev = [
     "pre-commit",
     "pytest",
@@ -123,7 +125,7 @@ testpaths = ["mujoco_warp"]
 norecursedirs = ["benchmarks", "contrib"]
 
 [tool.setuptools]
-package-data = { "mujoco_warp" = ["test_data/**"] }
+package-data = { "mujoco_warp" = ["test_data/**", "_src/optix/*.cpp", "_src/optix/*.h"] }
 
 [tool.setuptools.packages.find]
 include = ["mujoco_warp*"]

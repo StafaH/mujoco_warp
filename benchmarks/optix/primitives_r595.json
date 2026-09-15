@@ -1,0 +1,231 @@
+{
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "warp": "1.15.0",
+  "mujoco": "3.12.1",
+  "resolution": [
+    64,
+    64
+  ],
+  "shadows": false,
+  "depth": true,
+  "segmentation": false,
+  "cameras": null,
+  "replay": null,
+  "pose_noise_radians": 0.0,
+  "seed": 0,
+  "mode": "eager CUDA-event latency including host submission",
+  "iterations": 10,
+  "repeats": 7,
+  "results": [
+    {
+      "model": "benchmarks/render/primitives.xml",
+      "worlds": 1,
+      "backend": "warp",
+      "ngeoms": 127,
+      "mesh_triangles": 0,
+      "hardware_traversal": false,
+      "setup_seconds": 0.034639638000044215,
+      "parity": {},
+      "render": {
+        "median_ms": 0.08295999765396118,
+        "min_ms": 0.07778559923171997,
+        "max_ms": 0.08948479890823365
+      },
+      "render_graph": {
+        "median_ms": 0.02632960081100464,
+        "min_ms": 0.025939199328422546,
+        "max_ms": 0.02656320035457611
+      },
+      "refit": {
+        "median_ms": 0.02075839936733246,
+        "min_ms": 0.020342400670051573,
+        "max_ms": 0.02141759991645813
+      },
+      "refit_graph": {
+        "median_ms": 0.01451520025730133,
+        "min_ms": 0.0144896000623703,
+        "max_ms": 0.014588800072669984
+      },
+      "frame": {
+        "median_ms": 0.09868479967117309,
+        "min_ms": 0.0976639986038208,
+        "max_ms": 0.1015328049659729
+      },
+      "frame_graph": {
+        "median_ms": 0.039059200882911684,
+        "min_ms": 0.03895359933376312,
+        "max_ms": 0.039113599061965945
+      }
+    },
+    {
+      "model": "benchmarks/render/primitives.xml",
+      "worlds": 1,
+      "backend": "optix",
+      "ngeoms": 127,
+      "mesh_triangles": 0,
+      "hardware_traversal": false,
+      "setup_seconds": 0.07110560999990412,
+      "parity": {
+        "rgb_max_channel_error": 0,
+        "depth_max_abs_error": 0.0,
+        "segmentation_pixel_mismatches": null
+      },
+      "render": {
+        "median_ms": 0.07930880188941955,
+        "min_ms": 0.07838400006294251,
+        "max_ms": 0.08300160169601441
+      },
+      "refit": {
+        "median_ms": 0.020828799903392793,
+        "min_ms": 0.02066880017518997,
+        "max_ms": 0.022518399357795715
+      },
+      "frame": {
+        "median_ms": 0.09969599843025208,
+        "min_ms": 0.09919679760932923,
+        "max_ms": 0.10052800178527832
+      }
+    },
+    {
+      "model": "benchmarks/render/primitives.xml",
+      "worlds": 128,
+      "backend": "warp",
+      "ngeoms": 127,
+      "mesh_triangles": 0,
+      "hardware_traversal": false,
+      "setup_seconds": 0.02626423300011993,
+      "parity": {},
+      "render": {
+        "median_ms": 0.08361279964447021,
+        "min_ms": 0.08280320167541504,
+        "max_ms": 0.08541120290756225
+      },
+      "render_graph": {
+        "median_ms": 0.07038080096244811,
+        "min_ms": 0.06998080015182495,
+        "max_ms": 0.07091519832611085
+      },
+      "refit": {
+        "median_ms": 0.023212799429893495,
+        "min_ms": 0.02311040014028549,
+        "max_ms": 0.023423999547958374
+      },
+      "refit_graph": {
+        "median_ms": 0.022700800001621245,
+        "min_ms": 0.02258239984512329,
+        "max_ms": 0.02282879948616028
+      },
+      "frame": {
+        "median_ms": 0.10510079860687256,
+        "min_ms": 0.10355199575424194,
+        "max_ms": 0.10943360328674316
+      },
+      "frame_graph": {
+        "median_ms": 0.0920736014842987,
+        "min_ms": 0.09189440011978149,
+        "max_ms": 0.09249600172042846
+      }
+    },
+    {
+      "model": "benchmarks/render/primitives.xml",
+      "worlds": 128,
+      "backend": "optix",
+      "ngeoms": 127,
+      "mesh_triangles": 0,
+      "hardware_traversal": false,
+      "setup_seconds": 0.05269011900008991,
+      "parity": {
+        "rgb_max_channel_error": 0,
+        "depth_max_abs_error": 0.0,
+        "segmentation_pixel_mismatches": null
+      },
+      "render": {
+        "median_ms": 0.08842560052871704,
+        "min_ms": 0.08679999709129334,
+        "max_ms": 0.08975679874420166
+      },
+      "refit": {
+        "median_ms": 0.02327360063791275,
+        "min_ms": 0.023129600286483764,
+        "max_ms": 0.02333440035581589
+      },
+      "frame": {
+        "median_ms": 0.1091040015220642,
+        "min_ms": 0.10819840431213379,
+        "max_ms": 0.10969280004501343
+      }
+    },
+    {
+      "model": "benchmarks/render/primitives.xml",
+      "worlds": 8192,
+      "backend": "warp",
+      "ngeoms": 127,
+      "mesh_triangles": 0,
+      "hardware_traversal": false,
+      "setup_seconds": 0.3228124470001603,
+      "parity": {},
+      "render": {
+        "median_ms": 3.561686325073242,
+        "min_ms": 3.4446849822998047,
+        "max_ms": 3.563747024536133
+      },
+      "render_graph": {
+        "median_ms": 3.4197311401367188,
+        "min_ms": 3.3386783599853516,
+        "max_ms": 3.437238311767578
+      },
+      "refit": {
+        "median_ms": 0.19458240270614624,
+        "min_ms": 0.19436479806900026,
+        "max_ms": 0.19485119581222535
+      },
+      "refit_graph": {
+        "median_ms": 0.19465919733047485,
+        "min_ms": 0.19432320594787597,
+        "max_ms": 0.19479360580444335
+      },
+      "frame": {
+        "median_ms": 3.502054214477539,
+        "min_ms": 3.4940608978271483,
+        "max_ms": 3.503200149536133
+      },
+      "frame_graph": {
+        "median_ms": 3.5030399322509767,
+        "min_ms": 3.5024158477783205,
+        "max_ms": 3.5032543182373046
+      }
+    },
+    {
+      "model": "benchmarks/render/primitives.xml",
+      "worlds": 8192,
+      "backend": "optix",
+      "ngeoms": 127,
+      "mesh_triangles": 0,
+      "hardware_traversal": false,
+      "setup_seconds": 0.34449154699996143,
+      "parity": {
+        "rgb_max_channel_error": 0,
+        "depth_max_abs_error": 0.0,
+        "segmentation_pixel_mismatches": null
+      },
+      "render": {
+        "median_ms": 3.560847854614258,
+        "min_ms": 3.558380889892578,
+        "max_ms": 3.561075210571289
+      },
+      "refit": {
+        "median_ms": 0.1953920006752014,
+        "min_ms": 0.19520000219345093,
+        "max_ms": 0.19604159593582154
+      },
+      "frame": {
+        "median_ms": 3.5983230590820314,
+        "min_ms": 3.59749755859375,
+        "max_ms": 3.7122303009033204
+      }
+    }
+  ],
+  "driver": "595.91.07",
+  "optix_sdk": "9.0.0",
+  "pose_mode": "fixed initial pose, identical worlds; refit and instance build every frame"
+}

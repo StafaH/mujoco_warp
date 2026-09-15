@@ -337,6 +337,7 @@ def create_render_context(
   splat_rgba: np.ndarray | None = None,
   splat_adr: np.ndarray | None = None,
   splat_group_id: np.ndarray | None = None,
+  backend: str = "warp",
 ) -> RenderContext:
   """Creates a render context on device.
 
@@ -394,10 +395,19 @@ def create_render_context(
                if None then all splats are in one group.
     splat_group_id: Splat id for each world (nworld,). If None then all worlds
                     use the first splat group.
+    backend: "warp" for software traversal (default), or "optix" for NVIDIA RTX.
+      OptiX requires SDK headers via OPTIX_PATH and runs outside CUDA graph capture.
 
   Returns:
     The render context containing rendering fields and output arrays on device.
   """
+  if backend not in ("warp", "optix"):
+    raise ValueError(f"Unknown rendering backend: {backend!r}; expected 'warp' or 'optix'")
+  if backend == "optix":
+    from mujoco_warp._src import render_optix
+
+    render_optix.check_available()
+
   mjd = mujoco.MjData(mjm)
   mujoco.mj_forward(mjm, mjd)
 
@@ -696,6 +706,7 @@ def create_render_context(
   )
 
   rc = RenderContext(
+    backend=backend,
     nrender=ncam,
     cam_res=cam_res_arr,
     cam_id_map=wp.array(active_cam_indices, dtype=int),
@@ -781,6 +792,9 @@ def create_render_context(
   )
 
   bvh.build_scene_bvh(mjm, mjd, rc, nworld)
+
+  if backend == "optix":
+    rc._optix = render_optix.OptixRenderer(mjm, rc, nworld)
 
   warp_util.mark_batched(rc)
   return rc

@@ -1,0 +1,327 @@
+{
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "warp": "1.15.0",
+  "mujoco": "3.12.1",
+  "resolution": [
+    128,
+    128
+  ],
+  "shadows": true,
+  "mode": "eager CUDA-event latency including host submission",
+  "iterations": 10,
+  "repeats": 7,
+  "results": [
+    {
+      "model": "mujoco_warp/test_data/primitives.xml",
+      "worlds": 1,
+      "backend": "warp",
+      "ngeoms": 127,
+      "mesh_triangles": 0,
+      "setup_seconds": 0.03446306008845568,
+      "parity": {},
+      "render": {
+        "median_ms": 0.08170880079269409,
+        "min_ms": 0.0809823989868164,
+        "max_ms": 0.0840224027633667
+      },
+      "refit": {
+        "median_ms": 0.020604799687862396,
+        "min_ms": 0.020470400154590607,
+        "max_ms": 0.02189439982175827
+      },
+      "frame": {
+        "median_ms": 0.10225919485092164,
+        "min_ms": 0.10177279710769653,
+        "max_ms": 0.10299839973449706
+      }
+    },
+    {
+      "model": "mujoco_warp/test_data/primitives.xml",
+      "worlds": 1,
+      "backend": "optix",
+      "ngeoms": 127,
+      "mesh_triangles": 0,
+      "setup_seconds": 0.20284309796988964,
+      "parity": {
+        "rgb_max_channel_error": 1,
+        "depth_max_abs_error": 8.869171142578125e-05,
+        "segmentation_pixel_mismatches": 0
+      },
+      "render": {
+        "median_ms": 0.08226879835128784,
+        "min_ms": 0.08105279803276062,
+        "max_ms": 0.09213119745254517
+      },
+      "refit": {
+        "median_ms": 0.06416000127792358,
+        "min_ms": 0.06261119842529297,
+        "max_ms": 0.0694208025932312
+      },
+      "frame": {
+        "median_ms": 0.15456000566482545,
+        "min_ms": 0.15240639448165894,
+        "max_ms": 0.15782400369644164
+      }
+    },
+    {
+      "model": "mujoco_warp/test_data/primitives.xml",
+      "worlds": 16,
+      "backend": "warp",
+      "ngeoms": 127,
+      "mesh_triangles": 0,
+      "setup_seconds": 0.02257660124450922,
+      "parity": {},
+      "render": {
+        "median_ms": 0.09357759952545167,
+        "min_ms": 0.09317439794540405,
+        "max_ms": 0.09525439739227295
+      },
+      "refit": {
+        "median_ms": 0.02160000056028366,
+        "min_ms": 0.02129279971122742,
+        "max_ms": 0.022217600047588347
+      },
+      "frame": {
+        "median_ms": 0.11626240015029907,
+        "min_ms": 0.11517119407653809,
+        "max_ms": 0.11667519807815552
+      }
+    },
+    {
+      "model": "mujoco_warp/test_data/primitives.xml",
+      "worlds": 16,
+      "backend": "optix",
+      "ngeoms": 127,
+      "mesh_triangles": 0,
+      "setup_seconds": 0.16936674993485212,
+      "parity": {
+        "rgb_max_channel_error": 1,
+        "depth_max_abs_error": 8.869171142578125e-05,
+        "segmentation_pixel_mismatches": 0
+      },
+      "render": {
+        "median_ms": 0.08790720105171204,
+        "min_ms": 0.08323839902877808,
+        "max_ms": 0.0939743995666504
+      },
+      "refit": {
+        "median_ms": 0.44727039337158203,
+        "min_ms": 0.4440256118774414,
+        "max_ms": 0.45115838050842283
+      },
+      "frame": {
+        "median_ms": 0.504099178314209,
+        "min_ms": 0.5005504131317139,
+        "max_ms": 0.5077824115753173
+      }
+    },
+    {
+      "model": "mujoco_warp/test_data/primitives.xml",
+      "worlds": 128,
+      "backend": "warp",
+      "ngeoms": 127,
+      "mesh_triangles": 0,
+      "setup_seconds": 0.03005268331617117,
+      "parity": {},
+      "render": {
+        "median_ms": 0.43676161766052246,
+        "min_ms": 0.43593921661376955,
+        "max_ms": 0.4393727779388428
+      },
+      "refit": {
+        "median_ms": 0.026262399554252625,
+        "min_ms": 0.026163199543952943,
+        "max_ms": 0.028224000334739686
+      },
+      "frame": {
+        "median_ms": 0.46254720687866213,
+        "min_ms": 0.46143040657043455,
+        "max_ms": 0.4650720119476318
+      }
+    },
+    {
+      "model": "mujoco_warp/test_data/primitives.xml",
+      "worlds": 128,
+      "backend": "optix",
+      "ngeoms": 127,
+      "mesh_triangles": 0,
+      "setup_seconds": 0.19177536852657795,
+      "parity": {
+        "rgb_max_channel_error": 1,
+        "depth_max_abs_error": 8.869171142578125e-05,
+        "segmentation_pixel_mismatches": 0
+      },
+      "render": {
+        "median_ms": 0.37820160388946533,
+        "min_ms": 0.3771039962768555,
+        "max_ms": 0.38116159439086916
+      },
+      "refit": {
+        "median_ms": 3.6189247131347657,
+        "min_ms": 3.522608184814453,
+        "max_ms": 3.749055862426758
+      },
+      "frame": {
+        "median_ms": 4.01262092590332,
+        "min_ms": 3.987926483154297,
+        "max_ms": 4.021820831298828
+      }
+    },
+    {
+      "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+      "worlds": 1,
+      "backend": "warp",
+      "ngeoms": 204,
+      "mesh_triangles": 64609,
+      "setup_seconds": 0.2651077704504132,
+      "parity": {},
+      "render": {
+        "median_ms": 0.7835040092468262,
+        "min_ms": 0.7826911926269531,
+        "max_ms": 0.7855711936950683
+      },
+      "refit": {
+        "median_ms": 0.02136320024728775,
+        "min_ms": 0.020838400721549986,
+        "max_ms": 0.02222079932689667
+      },
+      "frame": {
+        "median_ms": 0.8046143531799317,
+        "min_ms": 0.8027775764465332,
+        "max_ms": 0.8089728355407715
+      }
+    },
+    {
+      "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+      "worlds": 1,
+      "backend": "optix",
+      "ngeoms": 204,
+      "mesh_triangles": 64609,
+      "setup_seconds": 0.40378925669938326,
+      "parity": {
+        "rgb_max_channel_error": 22,
+        "depth_max_abs_error": 0.0063803791999816895,
+        "segmentation_pixel_mismatches": 2
+      },
+      "render": {
+        "median_ms": 0.08853759765625,
+        "min_ms": 0.08718720078468323,
+        "max_ms": 0.09222080111503601
+      },
+      "refit": {
+        "median_ms": 0.06721600294113159,
+        "min_ms": 0.06540160179138184,
+        "max_ms": 0.08196160197257996
+      },
+      "frame": {
+        "median_ms": 0.16335680484771728,
+        "min_ms": 0.1617311954498291,
+        "max_ms": 0.16911360025405883
+      }
+    },
+    {
+      "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+      "worlds": 16,
+      "backend": "warp",
+      "ngeoms": 204,
+      "mesh_triangles": 64609,
+      "setup_seconds": 0.26214813347905874,
+      "parity": {},
+      "render": {
+        "median_ms": 1.6724416732788085,
+        "min_ms": 1.658892822265625,
+        "max_ms": 1.6873952865600585
+      },
+      "refit": {
+        "median_ms": 0.028649601340293884,
+        "min_ms": 0.02808000147342682,
+        "max_ms": 0.029657599329948426
+      },
+      "frame": {
+        "median_ms": 1.7004831314086915,
+        "min_ms": 1.6726751327514648,
+        "max_ms": 1.7169343948364257
+      }
+    },
+    {
+      "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+      "worlds": 16,
+      "backend": "optix",
+      "ngeoms": 204,
+      "mesh_triangles": 64609,
+      "setup_seconds": 0.39987829979509115,
+      "parity": {
+        "rgb_max_channel_error": 22,
+        "depth_max_abs_error": 0.0063803791999816895,
+        "segmentation_pixel_mismatches": 32
+      },
+      "render": {
+        "median_ms": 0.13979519605636598,
+        "min_ms": 0.138153600692749,
+        "max_ms": 0.14549119472503663
+      },
+      "refit": {
+        "median_ms": 0.6004191875457764,
+        "min_ms": 0.5990399837493896,
+        "max_ms": 0.6021759986877442
+      },
+      "frame": {
+        "median_ms": 0.7345376014709473,
+        "min_ms": 0.7315360069274902,
+        "max_ms": 0.7389823913574218
+      }
+    },
+    {
+      "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+      "worlds": 128,
+      "backend": "warp",
+      "ngeoms": 204,
+      "mesh_triangles": 64609,
+      "setup_seconds": 0.2695216704159975,
+      "parity": {},
+      "render": {
+        "median_ms": 8.907772827148438,
+        "min_ms": 8.896051025390625,
+        "max_ms": 8.930892944335938
+      },
+      "refit": {
+        "median_ms": 0.030294400453567506,
+        "min_ms": 0.030287998914718627,
+        "max_ms": 0.031116798520088196
+      },
+      "frame": {
+        "median_ms": 8.94381103515625,
+        "min_ms": 8.933712005615234,
+        "max_ms": 8.949270629882813
+      }
+    },
+    {
+      "model": "mujoco_warp/test_data/aloha_pot/scene.xml",
+      "worlds": 128,
+      "backend": "optix",
+      "ngeoms": 204,
+      "mesh_triangles": 64609,
+      "setup_seconds": 0.41498749144375324,
+      "parity": {
+        "rgb_max_channel_error": 22,
+        "depth_max_abs_error": 0.0063803791999816895,
+        "segmentation_pixel_mismatches": 256
+      },
+      "render": {
+        "median_ms": 0.6698016166687012,
+        "min_ms": 0.6689472198486328,
+        "max_ms": 0.6713727951049805
+      },
+      "refit": {
+        "median_ms": 5.284553527832031,
+        "min_ms": 5.130828857421875,
+        "max_ms": 5.296038436889648
+      },
+      "frame": {
+        "median_ms": 5.946096038818359,
+        "min_ms": 5.9419105529785154,
+        "max_ms": 5.964211273193359
+      }
+    }
+  ]
+}

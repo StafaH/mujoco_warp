@@ -1,0 +1,78 @@
+{
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "warp": "1.15.0",
+  "mujoco": "3.12.1",
+  "resolution": [
+    256,
+    256
+  ],
+  "shadows": false,
+  "depth": false,
+  "segmentation": false,
+  "cameras": null,
+  "replay": "benchmarks/unitree_g1/shuffle_dance.npz",
+  "pose_noise_radians": 0.0,
+  "seed": 0,
+  "mode": "eager CUDA-event latency including host submission",
+  "iterations": 10,
+  "repeats": 7,
+  "results": [
+    {
+      "model": "/home/mhaiderbhai/.cache/mjwarp-benchmark-assets/unitree_g1_hfield_render/scene_hfield.xml",
+      "worlds": 1,
+      "backend": "warp",
+      "ngeoms": 69,
+      "mesh_triangles": 393270,
+      "hardware_traversal": false,
+      "setup_seconds": 0.20784433700009686,
+      "parity": {},
+      "render": {
+        "median_ms": 0.43785600662231444,
+        "min_ms": 0.43752641677856446,
+        "max_ms": 0.43985600471496583
+      },
+      "refit": {
+        "median_ms": 0.021459199488162994,
+        "min_ms": 0.021052800118923187,
+        "max_ms": 0.021987199783325195
+      },
+      "frame": {
+        "median_ms": 0.45143680572509765,
+        "min_ms": 0.4510623931884766,
+        "max_ms": 0.4520832061767578
+      }
+    },
+    {
+      "model": "/home/mhaiderbhai/.cache/mjwarp-benchmark-assets/unitree_g1_hfield_render/scene_hfield.xml",
+      "worlds": 1,
+      "backend": "optix",
+      "ngeoms": 69,
+      "mesh_triangles": 393270,
+      "hardware_traversal": true,
+      "setup_seconds": 0.33490306099997724,
+      "parity": {
+        "rgb_max_channel_error": 1,
+        "depth_max_abs_error": null,
+        "segmentation_pixel_mismatches": null
+      },
+      "render": {
+        "median_ms": 0.13792320489883422,
+        "min_ms": 0.13720639944076538,
+        "max_ms": 0.13916480541229248
+      },
+      "refit": {
+        "median_ms": 0.0395552009344101,
+        "min_ms": 0.03882879912853241,
+        "max_ms": 0.04156799912452698
+      },
+      "frame": {
+        "median_ms": 0.1572831988334656,
+        "min_ms": 0.15514880418777466,
+        "max_ms": 0.16280959844589232
+      }
+    }
+  ],
+  "driver": "595.91.07",
+  "optix_sdk": "9.0.0",
+  "pose_mode": "fixed initial pose, identical worlds; refit and instance build every frame"
+}

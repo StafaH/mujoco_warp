@@ -1,0 +1,132 @@
+{
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "warp": "1.15.0",
+  "mujoco": "3.12.1",
+  "resolution": [
+    256,
+    256
+  ],
+  "shadows": false,
+  "depth": true,
+  "segmentation": false,
+  "cameras": null,
+  "replay": null,
+  "pose_noise_radians": 0.0,
+  "seed": 0,
+  "mode": "eager CUDA-event latency including host submission",
+  "iterations": 10,
+  "repeats": 7,
+  "results": [
+    {
+      "model": "benchmarks/render/primitives.xml",
+      "worlds": 1,
+      "backend": "warp",
+      "ngeoms": 127,
+      "mesh_triangles": 0,
+      "hardware_traversal": false,
+      "setup_seconds": 0.03496077200020409,
+      "parity": {},
+      "render": {
+        "median_ms": 0.08095679879188537,
+        "min_ms": 0.07891200184822082,
+        "max_ms": 0.09026560187339783
+      },
+      "refit": {
+        "median_ms": 0.020623999834060668,
+        "min_ms": 0.020470400154590607,
+        "max_ms": 0.02282560020685196
+      },
+      "frame": {
+        "median_ms": 0.0992959976196289,
+        "min_ms": 0.0988864004611969,
+        "max_ms": 0.10003839731216431
+      }
+    },
+    {
+      "model": "benchmarks/render/primitives.xml",
+      "worlds": 1,
+      "backend": "optix",
+      "ngeoms": 127,
+      "mesh_triangles": 0,
+      "hardware_traversal": false,
+      "setup_seconds": 0.07154808799987222,
+      "parity": {
+        "rgb_max_channel_error": 0,
+        "depth_max_abs_error": 0.0,
+        "segmentation_pixel_mismatches": null
+      },
+      "render": {
+        "median_ms": 0.07981119751930237,
+        "min_ms": 0.07817919850349427,
+        "max_ms": 0.08109440207481385
+      },
+      "refit": {
+        "median_ms": 0.020812800526618956,
+        "min_ms": 0.020454399287700653,
+        "max_ms": 0.02157119959592819
+      },
+      "frame": {
+        "median_ms": 0.09905920028686524,
+        "min_ms": 0.09866880178451538,
+        "max_ms": 0.0998528003692627
+      }
+    },
+    {
+      "model": "benchmarks/cloth/scene.xml",
+      "worlds": 1,
+      "backend": "warp",
+      "ngeoms": 21,
+      "mesh_triangles": 0,
+      "hardware_traversal": false,
+      "setup_seconds": 0.030794424000077925,
+      "parity": {},
+      "render": {
+        "median_ms": 0.07966079711914062,
+        "min_ms": 0.07779200077056884,
+        "max_ms": 0.08677440285682678
+      },
+      "refit": {
+        "median_ms": 0.0996288001537323,
+        "min_ms": 0.09880959987640381,
+        "max_ms": 0.1026047945022583
+      },
+      "frame": {
+        "median_ms": 0.18264319896697997,
+        "min_ms": 0.18041919469833373,
+        "max_ms": 0.18439680337905884
+      }
+    },
+    {
+      "model": "benchmarks/cloth/scene.xml",
+      "worlds": 1,
+      "backend": "optix",
+      "ngeoms": 21,
+      "mesh_triangles": 0,
+      "hardware_traversal": false,
+      "setup_seconds": 0.05022512999994433,
+      "parity": {
+        "rgb_max_channel_error": 0,
+        "depth_max_abs_error": 0.0,
+        "segmentation_pixel_mismatches": null
+      },
+      "render": {
+        "median_ms": 0.07861440181732178,
+        "min_ms": 0.0782144010066986,
+        "max_ms": 0.08199999928474426
+      },
+      "refit": {
+        "median_ms": 0.10298880338668823,
+        "min_ms": 0.10011520385742187,
+        "max_ms": 0.10679680109024048
+      },
+      "frame": {
+        "median_ms": 0.1839679956436157,
+        "min_ms": 0.18210239410400392,
+        "max_ms": 0.18632639646530152
+      }
+    }
+  ],
+  "driver": "595.91.07",
+  "optix_sdk": "9.0.0",
+  "pose_mode": "fixed initial pose, identical worlds; refit and instance build every frame"
+}

@@ -128,6 +128,8 @@ MuJoCo Warp supports the same features as MuJoCo with the following exceptions:
 
 MJWarp includes a **high-throughput** GPU batch renderer designed for simultaneous rendering of cameras across many parallel simulation worlds. The renderer uses ray-tracing to render MuJoCo scenes at millions of frames per second on NVIDIA GPUs.
 
+Choose `backend="warp"` (default) or the optional `backend="optix"` in `mjw.create_render_context`. OptiX accelerates mesh traversal and triangle intersection on RTX GPUs; it currently runs outside CUDA graph capture. See [setup, limitations, and measured performance](benchmarks/optix/README.md).
+
 Key capabilities:
 - Mesh rendering
 - Texture support

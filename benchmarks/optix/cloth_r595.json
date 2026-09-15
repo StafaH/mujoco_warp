@@ -1,0 +1,231 @@
+{
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "warp": "1.15.0",
+  "mujoco": "3.12.1",
+  "resolution": [
+    64,
+    64
+  ],
+  "shadows": false,
+  "depth": true,
+  "segmentation": false,
+  "cameras": null,
+  "replay": null,
+  "pose_noise_radians": 0.0,
+  "seed": 0,
+  "mode": "eager CUDA-event latency including host submission",
+  "iterations": 10,
+  "repeats": 7,
+  "results": [
+    {
+      "model": "benchmarks/cloth/scene.xml",
+      "worlds": 1,
+      "backend": "warp",
+      "ngeoms": 21,
+      "mesh_triangles": 0,
+      "hardware_traversal": false,
+      "setup_seconds": 1.7090687510001317,
+      "parity": {},
+      "render": {
+        "median_ms": 0.08720319867134094,
+        "min_ms": 0.07907840013504028,
+        "max_ms": 0.09039679765701295
+      },
+      "render_graph": {
+        "median_ms": 0.019913600385189058,
+        "min_ms": 0.019555200636386872,
+        "max_ms": 0.020521600544452668
+      },
+      "refit": {
+        "median_ms": 0.09983360171318054,
+        "min_ms": 0.09853439927101135,
+        "max_ms": 0.10262720584869385
+      },
+      "refit_graph": {
+        "median_ms": 0.08209279775619507,
+        "min_ms": 0.08206719756126404,
+        "max_ms": 0.08215680122375488
+      },
+      "frame": {
+        "median_ms": 0.18062399625778197,
+        "min_ms": 0.17764159440994262,
+        "max_ms": 0.18888640403747559
+      },
+      "frame_graph": {
+        "median_ms": 0.10053440332412719,
+        "min_ms": 0.10051519870758056,
+        "max_ms": 0.10061440467834473
+      }
+    },
+    {
+      "model": "benchmarks/cloth/scene.xml",
+      "worlds": 1,
+      "backend": "optix",
+      "ngeoms": 21,
+      "mesh_triangles": 0,
+      "hardware_traversal": false,
+      "setup_seconds": 0.06578186100000494,
+      "parity": {
+        "rgb_max_channel_error": 0,
+        "depth_max_abs_error": 0.0,
+        "segmentation_pixel_mismatches": null
+      },
+      "render": {
+        "median_ms": 0.07929279804229736,
+        "min_ms": 0.07841280102729797,
+        "max_ms": 0.08129600286483765
+      },
+      "refit": {
+        "median_ms": 0.10116159915924072,
+        "min_ms": 0.09946879744529724,
+        "max_ms": 0.106387197971344
+      },
+      "frame": {
+        "median_ms": 0.18298239707946778,
+        "min_ms": 0.1812384009361267,
+        "max_ms": 0.18534079790115357
+      }
+    },
+    {
+      "model": "benchmarks/cloth/scene.xml",
+      "worlds": 16,
+      "backend": "warp",
+      "ngeoms": 21,
+      "mesh_triangles": 0,
+      "hardware_traversal": false,
+      "setup_seconds": 0.03260808000004545,
+      "parity": {},
+      "render": {
+        "median_ms": 0.07984640002250672,
+        "min_ms": 0.07950720191001892,
+        "max_ms": 0.08275200128555298
+      },
+      "render_graph": {
+        "median_ms": 0.021887999773025513,
+        "min_ms": 0.02150080054998398,
+        "max_ms": 0.022118400037288665
+      },
+      "refit": {
+        "median_ms": 0.10392960309982299,
+        "min_ms": 0.10372480154037475,
+        "max_ms": 0.1052575945854187
+      },
+      "refit_graph": {
+        "median_ms": 0.09849280118942261,
+        "min_ms": 0.09844800233840942,
+        "max_ms": 0.09870719909667969
+      },
+      "frame": {
+        "median_ms": 0.18182400465011597,
+        "min_ms": 0.1807039976119995,
+        "max_ms": 0.18948479890823364
+      },
+      "frame_graph": {
+        "median_ms": 0.11958719491958618,
+        "min_ms": 0.1193727970123291,
+        "max_ms": 0.1204640030860901
+      }
+    },
+    {
+      "model": "benchmarks/cloth/scene.xml",
+      "worlds": 16,
+      "backend": "optix",
+      "ngeoms": 21,
+      "mesh_triangles": 0,
+      "hardware_traversal": false,
+      "setup_seconds": 0.05780847200003336,
+      "parity": {
+        "rgb_max_channel_error": 0,
+        "depth_max_abs_error": 0.0,
+        "segmentation_pixel_mismatches": null
+      },
+      "render": {
+        "median_ms": 0.0796288013458252,
+        "min_ms": 0.07800639867782592,
+        "max_ms": 0.0812608003616333
+      },
+      "refit": {
+        "median_ms": 0.10355839729309083,
+        "min_ms": 0.10330560207366943,
+        "max_ms": 0.10431360006332398
+      },
+      "frame": {
+        "median_ms": 0.18294719457626343,
+        "min_ms": 0.18193279504776,
+        "max_ms": 0.1864832043647766
+      }
+    },
+    {
+      "model": "benchmarks/cloth/scene.xml",
+      "worlds": 32,
+      "backend": "warp",
+      "ngeoms": 21,
+      "mesh_triangles": 0,
+      "hardware_traversal": false,
+      "setup_seconds": 0.04172942500008503,
+      "parity": {},
+      "render": {
+        "median_ms": 0.08094080090522766,
+        "min_ms": 0.08041599988937378,
+        "max_ms": 0.08419520258903504
+      },
+      "render_graph": {
+        "median_ms": 0.03334720134735107,
+        "min_ms": 0.033327999711036685,
+        "max_ms": 0.033990401029586795
+      },
+      "refit": {
+        "median_ms": 0.12092800140380859,
+        "min_ms": 0.12040640115737915,
+        "max_ms": 0.12142399549484253
+      },
+      "refit_graph": {
+        "median_ms": 0.1167199969291687,
+        "min_ms": 0.11640640497207641,
+        "max_ms": 0.11682239770889283
+      },
+      "frame": {
+        "median_ms": 0.18602880239486694,
+        "min_ms": 0.1847200036048889,
+        "max_ms": 0.18811839818954468
+      },
+      "frame_graph": {
+        "median_ms": 0.1486400008201599,
+        "min_ms": 0.1480288028717041,
+        "max_ms": 0.14865599870681762
+      }
+    },
+    {
+      "model": "benchmarks/cloth/scene.xml",
+      "worlds": 32,
+      "backend": "optix",
+      "ngeoms": 21,
+      "mesh_triangles": 0,
+      "hardware_traversal": false,
+      "setup_seconds": 0.06659727600003862,
+      "parity": {
+        "rgb_max_channel_error": 0,
+        "depth_max_abs_error": 0.0,
+        "segmentation_pixel_mismatches": null
+      },
+      "render": {
+        "median_ms": 0.07972800135612487,
+        "min_ms": 0.07892799973487855,
+        "max_ms": 0.08067520260810852
+      },
+      "refit": {
+        "median_ms": 0.12129919528961182,
+        "min_ms": 0.1205024003982544,
+        "max_ms": 0.1218176007270813
+      },
+      "frame": {
+        "median_ms": 0.18478720188140868,
+        "min_ms": 0.18311359882354736,
+        "max_ms": 0.1871392011642456
+      }
+    }
+  ],
+  "driver": "595.91.07",
+  "optix_sdk": "9.0.0",
+  "pose_mode": "fixed initial pose, identical worlds; refit and instance build every frame"
+}

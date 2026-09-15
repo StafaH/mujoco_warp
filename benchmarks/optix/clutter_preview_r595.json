@@ -1,0 +1,80 @@
+{
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "warp": "1.15.0",
+  "mujoco": "3.12.1",
+  "resolution": [
+    256,
+    256
+  ],
+  "shadows": true,
+  "cameras": [
+    "overhead_cam",
+    "worms_eye_cam",
+    "wrist_cam_left",
+    "wrist_cam_right"
+  ],
+  "replay": "benchmarks/aloha/pick_clutter.npz",
+  "pose_noise_radians": 0.0,
+  "seed": 0,
+  "mode": "eager CUDA-event latency including host submission",
+  "iterations": 10,
+  "repeats": 7,
+  "results": [
+    {
+      "model": "/home/mhaiderbhai/.cache/mjwarp-benchmark-assets/aloha_clutter_vision/scene_clutter.xml",
+      "worlds": 1,
+      "backend": "warp",
+      "ngeoms": 548,
+      "mesh_triangles": 1185312,
+      "setup_seconds": 0.7826316460000271,
+      "parity": {},
+      "render": {
+        "median_ms": 1.4324704170227052,
+        "min_ms": 1.4194463729858398,
+        "max_ms": 1.4463616371154786
+      },
+      "refit": {
+        "median_ms": 0.020576000213623047,
+        "min_ms": 0.020367999374866486,
+        "max_ms": 0.021184000372886657
+      },
+      "frame": {
+        "median_ms": 1.4484864234924317,
+        "min_ms": 1.435270404815674,
+        "max_ms": 1.4593152046203612
+      }
+    },
+    {
+      "model": "/home/mhaiderbhai/.cache/mjwarp-benchmark-assets/aloha_clutter_vision/scene_clutter.xml",
+      "worlds": 1,
+      "backend": "optix",
+      "ngeoms": 548,
+      "mesh_triangles": 1185312,
+      "setup_seconds": 0.9892110800000182,
+      "parity": {
+        "rgb_max_channel_error": 36,
+        "depth_max_abs_error": 2.86102294921875e-06,
+        "segmentation_pixel_mismatches": 0
+      },
+      "render": {
+        "median_ms": 0.24661760330200194,
+        "min_ms": 0.2434079885482788,
+        "max_ms": 0.25031681060791017
+      },
+      "refit": {
+        "median_ms": 0.03827199935913086,
+        "min_ms": 0.03766719996929169,
+        "max_ms": 0.041382399201393125
+      },
+      "frame": {
+        "median_ms": 0.26943678855895997,
+        "min_ms": 0.26683199405670166,
+        "max_ms": 0.27010560035705566
+      }
+    }
+  ],
+  "driver": "595.91.07",
+  "optix_sdk": "9.0.0",
+  "benchmark": "aloha_clutter_vision",
+  "pose_mode": "replay initial qpos, identical worlds, refit and hardware build every frame"
+}
