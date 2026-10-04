@@ -45,7 +45,7 @@ url = "https://py.mujoco.org/"
 explicit = true
 
 [tool.uv.sources]
-warp-lang = {index = "nvidia"}
+warp-lang = {path = "../mustafa_warp", editable = true}
 mujoco = {index = "mujoco"}
 
 [project.optional-dependencies]

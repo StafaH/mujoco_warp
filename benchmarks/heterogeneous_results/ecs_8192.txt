@@ -1,0 +1,16 @@
+Warp 1.19.0.dev0 initialized:
+   CUDA Toolkit 13.2, Driver 13.2
+   Devices:
+     "cpu"      : "x86_64"
+     "cuda:0"   : "NVIDIA RTX PRO 6000 Blackwell Workstation Edition" (95 GiB, sm_120, mempool enabled)
+   Kernel cache:
+     /home/mhaiderbhai/.cache/warp/1.19.0.dev0
+Module warp.experimental.table 9602357 load on device 'cuda:0' took 0.79 ms  (cached)
+Module __main__ 9d983ff load on device 'cuda:0' took 0.35 ms  (cached)
+Module warp.experimental.table 80694b9 load on device 'cuda:0' took 428.30 ms  (compiled)
+Module warp.experimental.table d110ca6 load on device 'cuda:0' took 241.62 ms  (compiled)
+Module warp.experimental.table e472410 load on device 'cuda:0' took 254.65 ms  (compiled)
+Module warp.experimental.table 89bde42 load on device 'cuda:0' took 265.37 ms  (compiled)
+single robot: worlds=8192, live rows=57344, committed table/scratch=22.3 MiB, creation/deletion/grouping graph=0.079 ms
+mixed robots: worlds=8192, live rows=114695, committed table/scratch=22.3 MiB, creation/deletion/grouping graph=0.129 ms
+The same graph and exported qpos pointer served both layouts.

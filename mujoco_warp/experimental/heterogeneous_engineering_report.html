@@ -1,0 +1,3159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Source-checked engineering report for Warp virtual memory, dynamic tables, capture scratch, and GPU-only heterogeneous MuJoCo Warp worlds."
+    />
+    <title>Warp and mjwarp — engineering report</title>
+    <style>
+      :root {
+        --paper: #f7f7f2;
+        --card: #fff;
+        --ink: #172c37;
+        --muted: #526570;
+        --line: #dbe2df;
+        --teal: #147561;
+        --mint: #e5f4eb;
+        --blue: #335fac;
+        --blue-bg: #e9effb;
+        --amber: #9a5a0b;
+        --amber-bg: #fff0d7;
+        --red: #a93131;
+        --red-bg: #fff0ef;
+        --nav: 248px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 24px;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font:
+          16px/1.7 system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      a {
+        color: var(--teal);
+        text-underline-offset: 3px;
+      }
+      a:hover {
+        text-decoration-thickness: 2px;
+      }
+      button,
+      select {
+        font: inherit;
+      }
+      button,
+      select,
+      a {
+        touch-action: manipulation;
+      }
+      button,
+      select {
+        border: 1px solid #aabbb5;
+        border-radius: 8px;
+        background: white;
+        color: var(--ink);
+        padding: 9px 12px;
+      }
+      button {
+        cursor: pointer;
+        font-weight: 650;
+      }
+      button:hover {
+        background: var(--mint);
+      }
+      button.primary {
+        background: var(--teal);
+        border-color: var(--teal);
+        color: #fff;
+      }
+      button.primary:hover {
+        background: #105f50;
+      }
+      :focus-visible {
+        outline: 3px solid #da8e18;
+        outline-offset: 3px;
+      }
+      code,
+      pre,
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      }
+      code {
+        font-size: 0.87em;
+        overflow-wrap: anywhere;
+        background: #edf1ee;
+        padding: 2px 5px;
+        border-radius: 4px;
+      }
+      pre {
+        padding: 20px 22px;
+        background: #142b35;
+        color: #e1f2e9;
+        border-radius: 12px;
+        overflow: auto;
+        font-size: 0.84rem;
+        line-height: 1.8;
+      }
+      pre code {
+        background: transparent;
+        padding: 0;
+        color: inherit;
+        font-size: inherit;
+        overflow-wrap: normal;
+      }
+      h1,
+      h2,
+      h3 {
+        overflow-wrap: anywhere;
+        line-height: 1.18;
+        letter-spacing: -0.035em;
+      }
+      h1 {
+        font-size: clamp(2.4rem, 4.9vw, 4.5rem);
+        max-width: 850px;
+        margin: 16px 0 24px;
+        font-weight: 750;
+      }
+      h2 {
+        font-size: clamp(1.7rem, 2.6vw, 2.3rem);
+        margin: 12px 0 22px;
+      }
+      h3 {
+        font-size: 1.12rem;
+        letter-spacing: -0.015em;
+        margin: 0 0 10px;
+      }
+      p {
+        margin: 0 0 18px;
+      }
+      ul,
+      ol {
+        padding-left: 24px;
+      }
+      li {
+        margin: 9px 0;
+      }
+      strong {
+        font-weight: 700;
+      }
+      .muted,
+      .caption {
+        color: var(--muted);
+      }
+      .caption {
+        font-size: 0.84rem;
+        margin: 12px 0 0;
+      }
+      .eyebrow {
+        font-size: 0.72rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-weight: 750;
+        color: var(--teal);
+      }
+      .skip {
+        position: absolute;
+        left: 20px;
+        top: -80px;
+        z-index: 20;
+        background: #fff;
+        padding: 10px;
+      }
+      .skip:focus {
+        top: 10px;
+      }
+      aside {
+        width: var(--nav);
+        position: fixed;
+        inset: 0 auto 0 0;
+        padding: 34px 24px;
+        border-right: 1px solid var(--line);
+        background: #f0f2ed;
+        overflow: auto;
+      }
+      .brand {
+        font-size: 0.92rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+      }
+      .brand-sub {
+        font-size: 0.77rem;
+        color: var(--muted);
+        margin: 7px 0 30px;
+      }
+      nav {
+        display: grid;
+        gap: 4px;
+      }
+      nav a {
+        display: flex;
+        gap: 11px;
+        text-decoration: none;
+        color: var(--muted);
+        font-size: 0.83rem;
+        padding: 8px 9px;
+        border-radius: 6px;
+      }
+      nav a:hover,
+      nav a[aria-current="location"] {
+        background: #dfece4;
+        color: #155846;
+      }
+      nav .n {
+        font-size: 0.71rem;
+        opacity: 0.75;
+        padding-top: 2px;
+      }
+      .aside-bottom {
+        margin-top: 34px;
+        border-top: 1px solid var(--line);
+        padding-top: 20px;
+        font-size: 0.75rem;
+        color: var(--muted);
+      }
+      main {
+        margin-left: var(--nav);
+        max-width: 1300px;
+        padding: 54px 7% 50px;
+      }
+      .hero {
+        padding-bottom: 44px;
+        border-bottom: 1px solid var(--line);
+      }
+      .lead {
+        font-size: 1.18rem;
+        max-width: 760px;
+        line-height: 1.65;
+      }
+      .badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 9px;
+        margin: 24px 0;
+      }
+      .badge {
+        border: 1px solid #cedad1;
+        border-radius: 100px;
+        padding: 5px 12px;
+        font-size: 0.75rem;
+        color: var(--teal);
+        background: #f0f7f0;
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-top: 30px;
+      }
+      .stat {
+        padding: 18px 20px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+      }
+      .stat b {
+        display: block;
+        font-size: 1.8rem;
+        letter-spacing: -0.04em;
+      }
+      .stat span {
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      section {
+        padding-top: 62px;
+        scroll-margin-top: 20px;
+      }
+      .section-number {
+        display: inline-block;
+        color: var(--teal);
+        font-size: 0.75rem;
+        font-weight: 750;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+      .grid3 {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        padding: 24px;
+      }
+      .card p:last-child {
+        margin-bottom: 0;
+      }
+      .note {
+        padding: 19px 23px;
+        border-left: 4px solid var(--teal);
+        border-radius: 0 10px 10px 0;
+        background: var(--mint);
+        margin: 24px 0;
+      }
+      .note p:last-child {
+        margin-bottom: 0;
+      }
+      .note.amber {
+        border-color: var(--amber);
+        background: var(--amber-bg);
+      }
+      .small {
+        font-size: 0.89rem;
+      }
+      .table-wrap {
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        margin: 22px 0;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 0.88rem;
+        text-align: left;
+      }
+      th,
+      td {
+        padding: 14px 17px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      thead {
+        background: #edf2ee;
+      }
+      th {
+        font-weight: 700;
+      }
+      tbody tr:last-child td,
+      tbody tr:last-child th {
+        border-bottom: 0;
+      }
+      caption {
+        text-align: left;
+        padding: 14px 17px;
+        font-size: 0.82rem;
+        color: var(--muted);
+        caption-side: bottom;
+      }
+      .nowrap {
+        white-space: nowrap;
+      }
+      .diagram {
+        padding: 26px;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        margin: 24px 0;
+      }
+      .diagram figcaption {
+        font-size: 0.84rem;
+        color: var(--muted);
+        margin-top: 16px;
+      }
+      .diagram svg {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+      .pipeline {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        counter-reset: phase;
+      }
+      .phase {
+        padding: 18px;
+        background: #f0f5f1;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        counter-increment: phase;
+      }
+      .phase:before {
+        content: counter(phase, decimal-leading-zero);
+        font:
+          700 0.8rem ui-monospace,
+          monospace;
+        color: var(--teal);
+        display: block;
+        margin-bottom: 7px;
+      }
+      .phase strong {
+        font-size: 0.89rem;
+        display: block;
+      }
+      .phase span {
+        font-size: 0.8rem;
+        color: var(--muted);
+        display: block;
+        margin-top: 5px;
+      }
+      .legend {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        font-size: 0.77rem;
+        color: var(--muted);
+        margin: 16px 0;
+      }
+      .legend span {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .swatch {
+        width: 10px;
+        height: 10px;
+        display: inline-block;
+        border-radius: 3px;
+      }
+      .human {
+        background: var(--blue-bg);
+        color: var(--blue);
+      }
+      .arm {
+        background: var(--mint);
+        color: var(--teal);
+      }
+      .dual {
+        background: var(--amber-bg);
+        color: var(--amber);
+      }
+      .pill {
+        display: inline-block;
+        padding: 3px 9px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 700;
+      }
+      .swatch.human {
+        background: var(--blue);
+      }
+      .swatch.arm {
+        background: var(--teal);
+      }
+      .swatch.dual {
+        background: var(--amber);
+      }
+      .demo {
+        border: 1px solid #b9cfc2;
+        border-radius: 14px;
+        padding: 26px;
+        background: #fff;
+        margin-top: 26px;
+      }
+      .demo-toolbar {
+        display: flex;
+        gap: 9px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin: 20px 0;
+      }
+      .demo-toolbar button {
+        font-size: 0.81rem;
+      }
+      .demo-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        gap: 20px;
+      }
+      .fixed-tags {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .fixed-tags span {
+        font-size: 0.71rem;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 5px 8px;
+        white-space: nowrap;
+      }
+      .demo-table select {
+        max-width: 100%;
+        width: 165px;
+        font-size: 0.76rem;
+        padding: 6px;
+      }
+      .demo-table th,
+      .demo-table td {
+        padding: 10px 12px;
+        vertical-align: middle;
+      }
+      .state-cells {
+        display: flex;
+        gap: 3px;
+        margin: 7px 0;
+      }
+      .state-cell {
+        width: 11px;
+        height: 13px;
+        border-radius: 2px;
+        background: #e9eeeb;
+      }
+      .state-cell.active.human {
+        background: var(--blue);
+      }
+      .state-cell.active.arm {
+        background: var(--teal);
+      }
+      .state-cell.active.dual {
+        background: var(--amber);
+      }
+      .workspace-groups {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .work-group {
+        background: #f7f9f7;
+        border-radius: 9px;
+        padding: 13px;
+        font-size: 0.78rem;
+      }
+      .work-group h4 {
+        font-size: 0.81rem;
+        margin: 0 0 9px;
+      }
+      .chunk {
+        display: flex;
+        gap: 5px;
+        margin: 6px 0;
+      }
+      .slot {
+        border-radius: 5px;
+        padding: 7px 5px;
+        flex: 1;
+        text-align: center;
+        font-size: 0.72rem;
+        font-weight: 650;
+        border: 1px solid transparent;
+      }
+      .slot.vacant {
+        border: 1px dashed #b5c4bb;
+        color: #687b70;
+        background: #fff;
+      }
+      .status {
+        padding: 13px 15px;
+        border-radius: 8px;
+        background: #edf5ef;
+        font-size: 0.85rem;
+        margin: 18px 0;
+      }
+      .status.error {
+        background: var(--red-bg);
+        color: var(--red);
+      }
+      .chunk-summary {
+        margin-top: 12px;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .bench-controls {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin: 20px 0;
+      }
+      .bench-controls label {
+        font-size: 0.85rem;
+        font-weight: 650;
+      }
+      .bench-controls select {
+        font-size: 0.85rem;
+      }
+      .benchmark-layout {
+        display: grid;
+        grid-template-columns: 1.15fr 1fr;
+        gap: 26px;
+      }
+      .bar-row {
+        margin: 18px 0 24px;
+      }
+      .bar-top {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.82rem;
+        margin-bottom: 8px;
+        gap: 8px;
+      }
+      .track {
+        height: 26px;
+        border-radius: 5px;
+        background: #eef2ee;
+        overflow: hidden;
+        display: flex;
+      }
+      .segment {
+        height: 100%;
+      }
+      .data-segment {
+        background: #407b7c;
+      }
+      .scratch-segment {
+        background: #c8ad7e;
+      }
+      .speed-bar {
+        background: var(--teal);
+        height: 100%;
+        border-radius: 5px;
+        transition: width 0.2s;
+      }
+      .memory-detail {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin-top: 18px;
+      }
+      .memory-detail div {
+        padding: 12px 9px;
+        background: #f1f5f1;
+        border-radius: 8px;
+        font-size: 0.73rem;
+      }
+      .memory-detail b {
+        display: block;
+        font-size: 1rem;
+        margin-bottom: 4px;
+      }
+      .source-list li {
+        font-size: 0.87rem;
+        margin: 12px 0;
+      }
+      .footer {
+        border-top: 1px solid var(--line);
+        margin-top: 55px;
+        padding-top: 22px;
+        font-size: 0.79rem;
+        color: var(--muted);
+      }
+      .print-button {
+        font-size: 0.77rem;
+        padding: 7px 11px;
+        margin-top: 14px;
+      }
+      .noscript {
+        padding: 15px;
+        background: var(--amber-bg);
+        border: 1px solid #cba75d;
+        border-radius: 8px;
+      }
+      .js-only {
+        display: none;
+      }
+      .has-js .js-only {
+        display: block;
+      }
+      .has-js .no-js-only {
+        display: none;
+      }
+      @media (min-width: 1600px) {
+        main {
+          padding-left: 90px;
+          padding-right: 90px;
+        }
+      }
+      @media (max-width: 1100px) {
+        :root {
+          --nav: 210px;
+        }
+        main {
+          padding: 40px 5%;
+        }
+        .grid3 {
+          grid-template-columns: 1fr;
+        }
+        .demo {
+          padding: 18px;
+        }
+        .benchmark-layout {
+          grid-template-columns: 1fr;
+        }
+        .demo-top {
+          display: block;
+        }
+        .fixed-tags {
+          justify-content: flex-start;
+          margin-top: 12px;
+        }
+      }
+      @media (max-width: 800px) {
+        aside {
+          position: static;
+          width: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+          padding: 20px 22px;
+        }
+        .brand-sub {
+          margin-bottom: 16px;
+        }
+        nav {
+          display: flex;
+          overflow: auto;
+          gap: 8px;
+        }
+        nav a {
+          white-space: nowrap;
+          padding: 6px;
+        }
+        .aside-bottom {
+          display: none;
+        }
+        main {
+          margin: 0;
+          padding: 34px 22px;
+        }
+        .stats {
+          gap: 9px;
+        }
+        .stat {
+          padding: 13px;
+        }
+        .stat b {
+          font-size: 1.4rem;
+        }
+        .grid2 {
+          grid-template-columns: 1fr;
+        }
+        .pipeline {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .diagram {
+          padding: 17px;
+        }
+        .workspace-groups {
+          grid-template-columns: 1fr;
+        }
+        .memory-detail {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        section {
+          padding-top: 46px;
+        }
+        .hero {
+          padding-bottom: 32px;
+        }
+      }
+      @media (max-width: 420px) {
+        main {
+          padding: 28px 16px;
+        }
+        .stats {
+          grid-template-columns: 1fr;
+        }
+        .stat {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .pipeline {
+          grid-template-columns: 1fr;
+        }
+        .card {
+          padding: 19px;
+        }
+        .demo {
+          padding: 14px;
+        }
+        th,
+        td {
+          padding: 10px;
+        }
+        h1 {
+          font-size: 2.55rem;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+        * {
+          transition: none !important;
+        }
+      }
+      @media print {
+        @page {
+          size: A4;
+          margin: 17mm;
+        }
+        body {
+          background: #fff;
+          font-size: 10pt;
+          color: #13252d;
+          print-color-adjust: exact;
+          -webkit-print-color-adjust: exact;
+        }
+        aside,
+        .skip,
+        .demo-toolbar,
+        .bench-controls,
+        .print-button,
+        .demo-table select,
+        .no-print {
+          display: none !important;
+        }
+        main {
+          margin: 0;
+          padding: 0;
+          max-width: none;
+        }
+        h1 {
+          font-size: 32pt;
+        }
+        h2 {
+          font-size: 20pt;
+        }
+        section {
+          padding-top: 26px;
+        }
+        h2,
+        h3 {
+          break-after: avoid;
+        }
+        p,
+        li {
+          orphans: 3;
+          widows: 3;
+        }
+        .card,
+        .phase,
+        .stat,
+        .bar-row,
+        tr {
+          break-inside: avoid;
+        }
+        .table-wrap {
+          overflow: visible;
+        }
+        .diagram,
+        .demo,
+        .card {
+          box-shadow: none;
+        }
+        .hero {
+          padding-bottom: 22px;
+        }
+        .benchmark-layout {
+          grid-template-columns: 1fr 1fr;
+        }
+        .caption,
+        .small {
+          font-size: 9pt;
+        }
+        .lead {
+          font-size: 12pt;
+        }
+        pre {
+          white-space: pre-wrap;
+          overflow-wrap: anywhere;
+          font-size: 8pt;
+        }
+        .source-list a {
+          overflow-wrap: anywhere;
+        }
+        a {
+          color: inherit;
+        }
+        .demo-table th:last-child,
+        .demo-table td:last-child {
+          display: none;
+        }
+        .grid3 {
+          grid-template-columns: repeat(3, 1fr);
+        }
+        .footer {
+          margin-top: 25px;
+        }
+        .workspace-groups {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+
+      h1 {
+        font-size: clamp(2.3rem, 4.2vw, 3.8rem);
+      }
+      .api-caption,
+      .source-line {
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .source-line {
+        padding-top: 15px;
+        border-top: 1px solid var(--line);
+        margin-top: 22px;
+      }
+      .api-caption {
+        margin-bottom: 8px;
+      }
+      h3 {
+        margin-top: 28px;
+      }
+      .card h3,
+      .source-card h3 {
+        margin-top: 0;
+      }
+      .implementation-list li {
+        padding-left: 5px;
+        margin-bottom: 16px;
+      }
+      .sequence {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 9px;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 20px;
+        margin: 22px 0;
+      }
+      .sequence span {
+        font-size: 0.78rem;
+        background: var(--mint);
+        padding: 8px 11px;
+        border-radius: 7px;
+      }
+      .sequence b {
+        font-weight: 500;
+        color: var(--muted);
+      }
+      .part-divider {
+        margin-top: 64px;
+        padding: 30px;
+        border-radius: 14px;
+        background: #172c37;
+        color: #fff;
+      }
+      .part-divider > span {
+        font-size: 0.75rem;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        color: #b7d3c8;
+        display: block;
+      }
+      .part-divider > strong {
+        font-size: 1.9rem;
+        letter-spacing: -0.03em;
+        display: block;
+        margin: 8px 0;
+      }
+      .part-divider p {
+        color: #d1e1d9;
+        margin: 0;
+        font-size: 0.92rem;
+      }
+      .arch-level {
+        border: 1px solid #c8dacf;
+        border-radius: 9px;
+        background: #f1f7f1;
+        padding: 16px 22px;
+        display: flex;
+        gap: 24px;
+        align-items: center;
+      }
+      .arch-level strong {
+        flex: 0 0 180px;
+        font-size: 0.88rem;
+      }
+      .arch-level span {
+        font-size: 0.86rem;
+        color: var(--muted);
+      }
+      .arch-arrow {
+        text-align: center;
+        font-size: 1.3rem;
+        color: var(--teal);
+      }
+      .nav-group {
+        font-size: 0.67rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--teal);
+        margin: 16px 8px 5px;
+        font-weight: 750;
+      }
+      .api-filter {
+        background: #edf3ee;
+        padding: 16px 18px;
+        border-radius: 9px;
+        margin: 24px 0;
+      }
+      .api-filter label {
+        font-size: 0.85rem;
+        font-weight: 700;
+        margin-right: 12px;
+      }
+      .api-filter select {
+        font-size: 0.85rem;
+      }
+      #api-filter-status {
+        font-size: 0.78rem;
+        color: var(--muted);
+        margin-left: 14px;
+      }
+      .phase-label {
+        display: inline-block;
+        font-size: 0.72rem;
+        font-weight: 650;
+        border-radius: 5px;
+        padding: 4px 7px;
+        background: #edf3ee;
+        color: var(--teal);
+        white-space: nowrap;
+      }
+      .phase-label.diagnostic {
+        background: var(--amber-bg);
+        color: var(--amber);
+      }
+      .phase-label.device {
+        background: var(--blue-bg);
+        color: var(--blue);
+      }
+      [hidden] {
+        display: none !important;
+      }
+      .source-card {
+        margin-top: 30px;
+        background: #fff;
+        padding: 24px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+      }
+      details {
+        border: 1px solid var(--line);
+        background: #fff;
+        padding: 16px 20px;
+        border-radius: 10px;
+        margin: 22px 0;
+      }
+      summary {
+        cursor: pointer;
+        font-size: 0.9rem;
+      }
+      details pre {
+        margin-bottom: 0;
+      }
+      nav a {
+        padding: 5px 9px;
+      }
+      .brand-sub {
+        margin-bottom: 12px;
+      }
+      .aside-bottom {
+        margin-top: 22px;
+      }
+      table th {
+        min-width: 100px;
+      }
+      main > section {
+        min-width: 0;
+      }
+      @media (max-width: 800px) {
+        nav .nav-group {
+          display: none;
+        }
+        .arch-level {
+          display: block;
+        }
+        .arch-level strong {
+          display: block;
+          margin-bottom: 7px;
+        }
+        .part-divider {
+          padding: 22px;
+        }
+        .api-filter select {
+          max-width: 100%;
+          margin-top: 8px;
+        }
+        #api-filter-status {
+          display: block;
+          margin: 10px 0 0;
+        }
+      }
+      @media print {
+        .api-filter {
+          display: none !important;
+        }
+        .part-divider {
+          break-before: page;
+          margin-top: 0;
+        }
+        .arch-level {
+          break-inside: avoid;
+        }
+        details {
+          break-inside: auto;
+        }
+        #api-index-table tr[hidden] {
+          display: table-row !important;
+        }
+        pre {
+          font-size: 7.6pt;
+        }
+        .source-line {
+          font-size: 8pt;
+        }
+        .sequence {
+          break-inside: avoid;
+        }
+        section {
+          padding-top: 25px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to report</a>
+    <aside aria-label="Engineering report navigation">
+      <div class="brand">WARP × MJWARP</div>
+      <p class="brand-sub">Engineering report<br />APIs · implementation · contracts</p>
+      <nav>
+        <div class="nav-group">Warp</div>
+        <a href="#warp-overview"><span class="n">01</span>Runtime architecture</a
+        ><a href="#virtual-memory"><span class="n">02</span>VirtualMemory</a
+        ><a href="#dynamic-table"><span class="n">03</span>DynamicTable</a
+        ><a href="#capture-scratch"><span class="n">04</span>ScopedCaptureScratch</a>
+        <div class="nav-group">MuJoCo Warp</div>
+        <a href="#fixed-runner"><span class="n">05</span>Fixed model batches</a
+        ><a href="#reset-planner"><span class="n">06</span>Slot reset planner</a
+        ><a href="#model-worklist"><span class="n">07</span>Model worklists</a
+        ><a href="#pooled-api"><span class="n">08</span>Pooled API</a
+        ><a href="#pooled-implementation"><span class="n">09</span>Pooled implementation</a
+        ><a href="#integration"><span class="n">10</span>Integration example</a>
+        <div class="nav-group">Evidence and reference</div>
+        <a href="#performance"><span class="n">11</span>Memory and throughput</a
+        ><a href="#validation"><span class="n">12</span>Validation and limits</a
+        ><a href="#api-index"><span class="n">13</span>API phase index</a>
+      </nav>
+      <div class="aside-bottom">
+        <a href="heterogeneous_report.html">Illustrated introduction ↗</a><br /><a href="README.md"
+          >Markdown engineering notes ↗</a
+        ><br /><button class="print-button" id="print-report" type="button">Print / save PDF</button>
+      </div>
+    </aside>
+    <main id="main">
+      <header class="hero">
+        <div class="eyebrow">Engineering report · Local experimental implementation</div>
+        <h1>Dynamic memory in Warp.<br />Flexible worlds in mjwarp.</h1>
+        <p class="lead">
+          API contracts, implementation paths, ownership, failure behavior, and measured tradeoffs. The report starts at the
+          Warp runtime and follows the mechanisms up into GPU-only robot reassignment.
+        </p>
+        <div class="badges">
+          <span class="badge">Part I · Warp primitives</span><span class="badge">Part II · mjwarp integration</span
+          ><span class="badge">Source-checked · 3 October 2026</span>
+        </div>
+        <p class="small muted">
+          This documents the local, uncommitted prototype in <code>mustafa_warp</code> and <code>mustafa_mjwarp</code>. APIs are
+          experimental. For a first-time explanation and an interactive reset illustration, see the
+          <a href="heterogeneous_report.html">illustrated guide</a>.
+        </p>
+      </header>
+
+      <section id="warp-overview">
+        <span class="section-number">Part I · Warp / 01</span>
+        <h2>Three mechanisms with separate responsibilities.</h2>
+        <p>
+          Warp provides storage and execution primitives. It does not know what a MuJoCo world is. The implementation separates
+          physical memory backing, logical table mutation, and temporary storage needed to capture conditional physics.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Primitive</th>
+                <th>Responsibility</th>
+                <th>Execution boundary</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th><code>wp.VirtualMemory</code></th>
+                <td>
+                  Reserve contiguous CUDA virtual addresses and commit a zero-initialized physical prefix without moving the
+                  base pointer.
+                </td>
+                <td>Host construction and explicit growth; mapping mutations rejected during capture.</td>
+              </tr>
+              <tr>
+                <th><code>warp.experimental.table.DynamicTable</code></th>
+                <td>Bounded device append/delete, stable handles, compaction, and grouping of component columns by world.</td>
+                <td>Logical mutation inside graphs; physical growth outside capture and between completed replays.</td>
+              </tr>
+              <tr>
+                <th><code>wp.ScopedCaptureScratch</code></th>
+                <td>
+                  Provide preallocated temporary storage to Python arrays and participating native allocation paths during graph
+                  construction.
+                </td>
+                <td>Suballocation and rewind at capture time; fixed addresses used during replay.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note">
+          <p>
+            <strong>The GPU-only mjwarp loop does not request new physical pages.</strong> It prepares the model catalog,
+            persistent arrays, Data arena, and scratch before capture. GPU kernels change logical assignments and process
+            variable populations within that prepared storage.
+          </p>
+        </div>
+        <div class="diagram architecture">
+          <div class="arch-level">
+            <strong>Warp public surface</strong><span>VirtualMemory · DynamicTable · ScopedCaptureScratch</span>
+          </div>
+          <div class="arch-arrow" aria-hidden="true">↓</div>
+          <div class="arch-level">
+            <strong>Warp implementation</strong
+            ><span>Python ownership and graph integration → native CUDA bindings and allocators</span>
+          </div>
+          <div class="arch-arrow" aria-hidden="true">↓</div>
+          <div class="arch-level">
+            <strong>CUDA mechanisms</strong
+            ><span>Address reservation / mapping · kernel execution · conditional graph bodies</span>
+          </div>
+          <p class="caption">
+            DynamicTable is a separate ECS storage foundation. The pooled mjwarp runner uses VirtualMemory and
+            ScopedCaptureScratch directly, with its own world worklists.
+          </p>
+        </div>
+        <p class="source-line">
+          Code: <a href="../../../mustafa_warp/warp/_src/context.py">warp/_src/context.py</a>,
+          <a href="../../../mustafa_warp/warp/experimental/table.py">warp/experimental/table.py</a>,
+          <a href="../../../mustafa_warp/warp/native/warp.cu">warp/native/warp.cu</a>.
+        </p>
+      </section>
+
+      <section id="virtual-memory">
+        <span class="section-number">Warp / 02</span>
+        <h2>VirtualMemory: stable addresses, explicit backing.</h2>
+        <p class="api-caption">Public constructor · signature extracted from the local source</p>
+        <pre
+          data-signature="VirtualMemory"
+        ><code>wp.VirtualMemory(size_in_bytes: int, device: DeviceLike = &#x27;cuda&#x27;, initial_size: int = 0)</code></pre>
+        <p>
+          <code>size_in_bytes</code> is the requested reservation, rounded up to the device mapping granularity.
+          <code>initial_size</code> is the prefix committed during construction, and must initially lie between zero and the
+          requested size. The device must support CUDA VMM. The tested GPU reports a 2 MiB minimum granule.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>API / attribute</th>
+                <th>Contract</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th><code>commit(size_in_bytes)</code></th>
+                <td>
+                  Ensure a page-rounded prefix is physically backed. Existing data and the base address remain. New pages are
+                  zeroed. A smaller request does not shrink storage; requests already satisfied return without mapping growth.
+                </td>
+              </tr>
+              <tr>
+                <th><code>array(shape, dtype=wp.float32, offset=0)</code></th>
+                <td>
+                  Return a contiguous zero-copy Warp view. Offset is in bytes, must be nonnegative and element-size aligned, and
+                  the entire view must fit the rounded reservation.
+                </td>
+              </tr>
+              <tr>
+                <th><code>close()</code></th>
+                <td>
+                  Release storage after views and graph users have been discarded. Rejects live registered array views.
+                  Already-closed reservations are a no-op.
+                </td>
+              </tr>
+              <tr>
+                <th><code>ptr</code></th>
+                <td>Stable base address until release.</td>
+              </tr>
+              <tr>
+                <th><code>reserved_size</code>, <code>committed_size</code>, <code>granularity</code></th>
+                <td>
+                  Byte counts including native page rounding. Reservation is address space; commitment is physical backing.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <h3>Python → native → CUDA</h3>
+        <ol class="implementation-list">
+          <li>
+            <strong>Create:</strong> Python validates size/device/capture state and calls <code>wp_virtual_memory_create</code>.
+            Native code enters the CUDA context, checks VMM support, queries minimum granularity, and calls
+            <code>cuMemAddressReserve</code>.
+          </li>
+          <li>
+            <strong>Grow:</strong> native <code>wp_virtual_memory_commit</code> synchronizes the CUDA context before changing
+            mappings. It creates physical backing for the missing suffix with <code>cuMemCreate</code>, maps it with
+            <code>cuMemMap</code>, and sets local-device read/write access with <code>cuMemSetAccess</code>.
+          </li>
+          <li>
+            <strong>Initialize and publish:</strong> new pages are cleared and synchronized before the committed size is
+            published. The mapping retains physical-memory ownership after the temporary allocation handle is released.
+          </li>
+          <li>
+            <strong>Release:</strong> native destruction synchronizes outstanding work, unmaps recorded spans, frees the
+            reservation, and deletes metadata. Destruction during Warp capture can be deferred through the existing cleanup
+            lifecycle.
+          </li>
+        </ol>
+        <p>
+          Bindings are declared in <code>warp/native/warp.h</code>; CUDA driver entry points are loaded in
+          <code>cuda_util.cpp/.h</code>. CPU-only builds expose inert native symbols so ordinary Warp initialization still
+          works. Python rejects attempting this storage on a CPU device.
+        </p>
+        <h3>Ownership and accessible ranges</h3>
+        <p>
+          Each view stores a reference to its reservation owner. A view may describe the entire reserved range for use as a
+          stable captured argument, but kernels must guard every access with a committed bound. Whole-view operations such as
+          <code>numpy()</code>, <code>zero_()</code>, or copies can touch unmapped addresses. Use a committed-length view for
+          those operations.
+        </p>
+        <pre><code>import warp as wp
+
+vm = wp.VirtualMemory(64 &lt;&lt; 20, device="cuda:0", initial_size=4 &lt;&lt; 20)
+values = vm.array(1024, dtype=wp.float32)  # Entire view is physically backed.
+pointer = values.ptr
+vm.commit(8 &lt;&lt; 20)                     # Host growth, outside graph capture.
+assert values.ptr == pointer
+# Retain vm/views while any graph or external tensor uses their addresses.</code></pre>
+        <p>
+          Array ownership is not a substitute for retaining all graph-referenced storage. Explicit <code>close()</code> cannot
+          infer every external raw-pointer use. Keep the reservation or owning arrays alive for captured and borrowed tensor
+          users.
+        </p>
+        <div class="note amber">
+          <p>
+            <strong>Failure and scope:</strong> invalid sizes raise <code>ValueError</code>; capture/closed/native failures
+            raise <code>RuntimeError</code>. Mapping failures do not publish a larger committed prefix. There is no GPU fault
+            service, physical shrinking, peer access, CUDA IPC, or concurrent mutation of a reservation. A host mapping service
+            must not call this synchronizing <code>commit()</code> while a GPU kernel waits for that service.
+          </p>
+        </div>
+        <p class="source-line">
+          Implementation: <a href="../../../mustafa_warp/warp/_src/context.py">VirtualMemory in context.py</a> and
+          <a href="../../../mustafa_warp/warp/native/warp.cu">native reservation/mapping functions</a>. Design:
+          <a href="../../../mustafa_warp/design/cuda-virtual-memory.md">cuda-virtual-memory.md</a>. Semantics:
+          <a href="https://docs.nvidia.com/cuda/cuda-driver-api/cuda_driver_api/group__CUDA__VA.html"
+            >CUDA driver VMM reference</a
+          >.
+        </p>
+      </section>
+
+      <section id="dynamic-table">
+        <span class="section-number">Warp / 03</span>
+        <h2>DynamicTable: logical allocation inside a graph.</h2>
+        <pre data-signature="DynamicTable"><code>DynamicTable(
+    columns,
+    max_rows,
+    num_worlds,
+    initial_capacity = 0,
+    device = None,
+    dispatch_width = 65536,
+)</code></pre>
+        <p>
+          <code>columns</code> maps component names to Warp scalar, vector, or struct types. Each component and its compaction
+          scratch reserve a contiguous <code>max_rows</code> region. CUDA uses VMM; the CPU correctness path allocates maximum
+          storage eagerly. <code>capacity</code> is the logical accessible prefix and can be smaller than page-rounded physical
+          backing.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Storage</th>
+                <th>Meaning</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th><code>columns[name]</code></th>
+                <td>Reserved-shape component array. Its address stays fixed through growth and compaction.</td>
+              </tr>
+              <tr>
+                <th><code>state.counters</code></th>
+                <td>
+                  Five int32 values: extent, accessible capacity, sticky error bits, live-row count, free-list scratch counter.
+                </td>
+              </tr>
+              <tr>
+                <th><code>world</code>, <code>alive</code>, <code>entity</code></th>
+                <td>Per-row world ID, liveness flag, and entity slot.</td>
+              </tr>
+              <tr>
+                <th><code>slot_to_row</code>, <code>generation</code>, <code>free_slots</code></th>
+                <td>Handle resolution, uint64 generations, and reusable entity slots.</td>
+              </tr>
+              <tr>
+                <th><code>world_offsets</code></th>
+                <td>
+                  <code>num_worlds + 1</code> offsets describing compacted world ranges; valid after compaction until the next
+                  append/delete phase.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          <code>max_rows</code> must be between 1 and 2³¹−1. <code>num_worlds</code> must be positive and leave room for the
+          offset sentinel. Launch width is fixed to <code>min(dispatch_width, max_rows)</code>; kernels loop over device counts,
+          allowing membership to change without graph reconstruction.
+        </p>
+        <h3>Device functions and host recording methods</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>API</th>
+                <th>Behavior</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th><code>append_row(state, world)</code><br /><code>append_rows(state, world, count)</code></th>
+                <td>
+                  Kernel-callable functions. Atomically reserve an entire contiguous batch and initialize metadata. Return the
+                  first row, or −1 with a sticky error. The producer initializes components; consumers must execute in a later
+                  kernel phase.
+                </td>
+              </tr>
+              <tr>
+                <th><code>entity_at(state, row)</code><br /><code>find_row(state, entity)</code></th>
+                <td>
+                  Construct a handle from a valid live row; resolve a handle through its slot and generation. Deleted/recycled
+                  handles resolve to −1. <code>entity_at</code> expects the caller to supply a valid row.
+                </td>
+              </tr>
+              <tr>
+                <th><code>delete_entity(state, entity)</code></th>
+                <td>
+                  Mark a live row dead once, invalidate its slot mapping, increment its generation, and decrement live count.
+                  Returns a bool. Row storage is reclaimed by compaction.
+                </td>
+              </tr>
+              <tr>
+                <th><code>append_worlds(counts)</code></th>
+                <td>
+                  Host-callable, graph-recordable method. Takes device int32 counts of length <code>num_worlds</code>; uses an
+                  int64 prefix scan and one batch reservation. Returns device offsets, all −1 on failure. Offsets are reused by
+                  the next call.
+                </td>
+              </tr>
+              <tr>
+                <th><code>compact()</code></th>
+                <td>Record/enqueue grouping and compaction while preserving component addresses and surviving handles.</td>
+              </tr>
+              <tr>
+                <th><code>clear()</code></th>
+                <td>
+                  Invalidate live handles, reset row counts and offsets, and recycle slots. Keeps physical memory and sticky
+                  errors.
+                </td>
+              </tr>
+              <tr>
+                <th><code>ensure_capacity(rows)</code></th>
+                <td>
+                  Host growth outside capture. Commit every region, initialize new slots, then publish logical capacity. Does
+                  not retry failed appends or clear errors.
+                </td>
+              </tr>
+              <tr>
+                <th><code>clear_errors()</code></th>
+                <td>Record/enqueue clearing sticky device error bits.</td>
+              </tr>
+              <tr>
+                <th><code>check_errors()</code>, <code>live_count</code></th>
+                <td>Read back device counters; diagnostics outside the GPU-only loop. Errors raise on the host.</td>
+              </tr>
+              <tr>
+                <th><code>committed_bytes</code></th>
+                <td>Owned mapped bytes plus fixed metadata/scratch; CPU storage reports its eager allocation.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <h3>Append and compaction internals</h3>
+        <p>
+          <code>append_rows</code> uses compare-and-swap on the row extent. It first checks world/count validity, then reserves
+          only when the whole requested batch fits. Independent callers can succeed or fail individually; they are not one
+          global transaction. <code>append_worlds</code> combines per-world counts into a single all-or-none reservation,
+          avoiding one contended atomic reservation per entity.
+        </p>
+        <div class="sequence">
+          <span>Histogram live worlds</span><b>→</b><span>Prefix scan</span><b>→</b><span>Assign destinations</span><b>→</b
+          ><span>Gather to scratch</span><b>→</b><span>Copy back</span><b>→</b><span>Remap handles / recycle slots</span>
+        </div>
+        <p>
+          Compaction keeps exported arrays in place by copying components back from persistent scratch. Relative ordering within
+          a world is unspecified. Its cost includes scanning the row extent and committed slots, scanning world counts, and
+          moving live component bytes. Scratch adds approximately another copy of component storage, plus metadata.
+        </p>
+        <p>
+          Error bits are <code>1</code> for capacity exhaustion, <code>2</code> for an invalid world ID, and <code>4</code> for
+          a negative count. Failed appends do not grant access beyond capacity. If growth fails after some regions were
+          committed, those regions may already have larger physical backing; logical capacity is published only after the growth
+          sequence succeeds.
+        </p>
+        <pre><code>from warp.experimental.table import DynamicTable
+
+table = DynamicTable(
+    {"position": wp.vec3, "velocity": wp.vec3},
+    max_rows=1 &lt;&lt; 20, num_worlds=8192,
+    initial_capacity=8192 * 16, device="cuda:0",
+)
+# counts is a preallocated device int32 array of length 8192.
+# During graph construction, after any needed kernel/scan warmup:
+#   offsets = table.append_worlds(counts)
+#   enqueue a component-initialization kernel using those offsets
+#   table.compact()
+# Provision enough initial capacity to keep physical growth out of replay.</code></pre>
+        <p>
+          Append, delete, and compact must be separate ordered phases on one stream. The prototype does not provide concurrent
+          cross-stream mutation, automatic retry, arbitrary archetype migration, autodiff, or physical shrinking. Keep the table
+          alive while exporting its columns; expose only safe live/committed ranges.
+        </p>
+        <p class="source-line">
+          Code: <a href="../../../mustafa_warp/warp/experimental/table.py">table.py</a>. Design:
+          <a href="../../../mustafa_warp/design/dynamic-component-tables.md">dynamic-component-tables.md</a>. Example:
+          <a href="../../../mustafa_warp/warp/examples/core/example_dynamic_table.py">example_dynamic_table.py</a> (its
+          standalone storage demo grows physical capacity between replays).
+        </p>
+      </section>
+
+      <section id="capture-scratch">
+        <span class="section-number">Warp / 04</span>
+        <h2>ScopedCaptureScratch: preallocate conditional-body temporaries.</h2>
+        <pre data-signature="ScopedCaptureScratch"><code>wp.ScopedCaptureScratch(buffer)</code></pre>
+        <p>
+          <code>buffer</code> must be a nonempty, contiguous, one-dimensional CUDA <code>wp.uint8</code> array with fully
+          committed storage. Native arena creation also requires 256-byte base alignment. The scope inherits the actual buffer’s
+          memory kind rather than assuming every buffer comes from the same allocator.
+        </p>
+        <p>
+          CUDA conditional body graphs exclude allocation/free nodes. Existing mjwarp functions request temporary Python arrays
+          and native scan workspace while being captured. This scope turns those requests into offsets in an already allocated
+          buffer.
+          <a
+            href="https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cuda-graphs.html#conditional-node-body-graph-requirements"
+            >CUDA conditional-body requirements</a
+          >
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>API</th>
+                <th>Contract</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th><code>with scratch:</code></th>
+                <td>
+                  Install the device custom allocator and thread-local native active arena. Restore prior state on exit or
+                  failed entry. A particular scope is not reentrant.
+                </td>
+              </tr>
+              <tr>
+                <th><code>allocate(size_in_bytes)</code></th>
+                <td>
+                  Allocator-protocol entry. Valid only during capture on the arena’s current stream. Suballocate at 256-byte
+                  alignment; no individual allocation reclamation.
+                </td>
+              </tr>
+              <tr>
+                <th><code>deallocate(ptr, size_in_bytes)</code></th>
+                <td>No-op for individual slices; their storage remains owned by the backing buffer.</td>
+              </tr>
+              <tr>
+                <th><code>rewind()</code></th>
+                <td>
+                  Reset the capture-time bump cursor. Safe only when previously recorded users finish before later users reuse
+                  those bytes. Records no replay-time allocator operation.
+                </td>
+              </tr>
+              <tr>
+                <th><code>used_bytes</code></th>
+                <td>
+                  Current bump offset including padding; it is not a lifetime high-water mark. The pooled runner tracks its own
+                  peak across physics branches.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <h3>Native integration and ownership</h3>
+        <p>
+          The Python scope routes Warp array creation through the allocator protocol. Native device allocation paths route
+          matching capturing streams through <code>wp_capture_scratch_alloc</code>. A thread-local active-arena stack controls
+          capture allocation, while a mutex-protected registry of live arenas recognizes their pointer ranges even after scope
+          exit. Native frees of suballocated pointers do not free the backing memory.
+        </p>
+        <p>
+          Arrays retain their allocator; the allocator retains the buffer. Graphs retain the scope for native-only scratch
+          pointers, and child/conditional graph integration propagates those references. Metadata is unregistered before
+          releasing the backing owner. Existing retained side-stream sort workspaces continue to use their existing graph
+          lifecycle; native scans use this scoped arena.
+        </p>
+        <pre><code># Setup: allocate persistent input/output, a device condition, and scratch.
+scratch = wp.ScopedCaptureScratch(wp.empty(8 &lt;&lt; 20, dtype=wp.uint8, device="cuda:0"))
+
+with wp.ScopedDevice("cuda:0"), scratch:
+    with wp.ScopedCapture(device="cuda:0") as capture:
+        # record_phase_a/b enqueue kernels and temporary allocations.
+        wp.capture_if(condition_a, record_phase_a)
+        scratch.rewind()  # Phase A must finish before phase B uses these bytes.
+        wp.capture_if(condition_b, record_phase_b)
+
+# Later launches use the recorded addresses; no scratch allocation is replayed.
+wp.capture_launch(capture.graph)</code></pre>
+        <p class="caption">
+          Integration pattern: <code>condition_a/b</code> and <code>record_phase_a/b</code> are caller-supplied. Both conditions
+          may be true if the phases execute in order and do not retain temporary contents across the boundary.
+        </p>
+        <div class="note amber">
+          <p>
+            <strong>Exhaustion is a capture failure.</strong> The native arena latches its exhausted flag; scope exit rejects
+            the capture even if a native caller did not propagate its failure. Rewind does not clear that flag. Increase the
+            budget or reduce the working batch and create suitable scratch before recapturing. The scope performs no physical
+            growth.
+          </p>
+        </div>
+        <p>
+          Entering does not implicitly rewind. Alternate-stream capture must use the appropriate <code>wp.ScopedStream</code>.
+          APIC recording, concurrent host allocations on the scoped device, and concurrent graph execution sharing scratch are
+          unsupported. Scratch-created arrays must not become persistent application state across reuse boundaries.
+        </p>
+        <p class="source-line">
+          Code: <a href="../../../mustafa_warp/warp/_src/context.py">scope and graph retention in context.py</a>,
+          <a href="../../../mustafa_warp/warp/native/warp.cu">native arena and allocation/free interception</a>. Tests:
+          <a href="../../../mustafa_warp/warp/tests/test_capture_scratch.py">test_capture_scratch.py</a>.
+        </p>
+      </section>
+
+      <div class="part-divider">
+        <span>Part II</span><strong>MuJoCo Warp integration</strong>
+        <p>
+          The primitives above now support device reset transactions and model-specific physics scheduled through prepared
+          storage.
+        </p>
+      </div>
+
+      <section id="fixed-runner">
+        <span class="section-number">mjwarp / 05</span>
+        <h2>HeterogeneousWorlds: fixed model batches.</h2>
+        <pre data-signature="HeterogeneousWorlds"><code>HeterogeneousWorlds(
+    models: Sequence[mujoco.MjModel],
+    world_model_ids: Sequence[int],
+    *,
+    device = None,
+    data_kwargs: Mapping[int, Mapping[str, int]] | None = None,
+    memory: str = &#x27;default&#x27;,
+    virtual_reserve_bytes: int | Mapping[int, int] = 4 &lt;&lt; 30,
+    capacity_per_model: Mapping[int, int] | None = None,
+)</code></pre>
+        <p>
+          The model catalog is a sequence of host <code>mujoco.MjModel</code> objects. Initial model IDs are a nonempty
+          one-dimensional integer sequence. Groups are keyed by supplied model ID; equal dimensions do not imply equal dynamics.
+          <code>data_kwargs</code> maps model IDs to <code>io.make_data</code> settings and must not override
+          <code>nworld</code>.
+        </p>
+        <p>
+          <code>capacity_per_model</code> defaults to exact initial counts. An initially unused model needs explicit positive
+          capacity to be available for GPU requests. <code>memory="default"</code> uses ordinary allocation;
+          <code>"virtual"</code> supplies one monotonic VMM arena per group’s Data arrays. Model arrays keep the ordinary
+          allocator. Each VMM arena aligns slices to 256 bytes, commits during construction, and retains individual frees until
+          arena release.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Public API</th>
+                <th>Semantics</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th><code>groups</code></th>
+                <td>
+                  Tuple of frozen <code>WorldGroup</code> objects containing <code>model_id</code>, device <code>model</code>,
+                  <code>data</code>, device <code>world_ids</code>, and arena metadata. A vacant physical slot has world ID −1.
+                </td>
+              </tr>
+              <tr>
+                <th><code>enable_device_resets()</code></th>
+                <td>
+                  Setup only, before any graph exists. Create templates, packed slots, mappings, and planner scratch. Return the
+                  device request array, also exposed as <code>reset_model_ids</code>.
+                </td>
+              </tr>
+              <tr>
+                <th><code>reset_worlds_device(requests=None)</code></th>
+                <td>
+                  Enqueue or record the device transaction and state initialization. Requires enabled resets. Follow immediately
+                  with action routing and physics; does not allocate or read back state.
+                </td>
+              </tr>
+              <tr>
+                <th><code>capture(steps_per_launch=1, before_step=None, before_reset=None)</code></th>
+                <td>
+                  Keyword-only arguments. Record episode callback → reset maintenance → action callback → physics for every
+                  group. Return the graph.
+                </td>
+              </tr>
+              <tr>
+                <th><code>step()</code></th>
+                <td>Replay the captured graph, or advance one timestep eagerly if no graph exists.</td>
+              </tr>
+              <tr>
+                <th><code>arrays(field)</code></th>
+                <td>
+                  Return <code>(world_ids, Data array)</code> pairs. Nested Data names may use dots. These are physical group
+                  arrays; route logical worlds using device mappings.
+                </td>
+              </tr>
+              <tr>
+                <th><code>locate(world_id)</code>, <code>world_array(world_id, field)</code></th>
+                <td>
+                  Host convenience lookups only before enabling GPU resets. <code>world_array</code> preserves a leading
+                  dimension of one and requires a world-indexed field.
+                </td>
+              </tr>
+              <tr>
+                <th><code>inspect_layout()</code>, <code>memory_report()</code></th>
+                <td>
+                  Host diagnostics outside capture. Layout inspection synchronizes/readbacks; reset-enabled memory reporting
+                  reads occupancy from device slots.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <pre><code>from mujoco_warp.experimental import HeterogeneousWorlds
+
+# Integration skeleton: models and device-work callbacks are supplied by the application.
+worlds = HeterogeneousWorlds(
+    models, initial_model_ids, device="cuda:0",
+    capacity_per_model={0: 4096, 1: 4096, 2: 4096},
+    memory="default",
+)
+requests = worlds.enable_device_resets()
+worlds.capture(before_reset=episode_logic, before_step=route_actions)
+worlds.step()</code></pre>
+        <p>
+          After enabling resets, <code>world_group</code>, <code>world_row</code>, and <code>world_model_ids</code> are
+          authoritative device arrays. Cached host mappings must not be used. Shared model parameters and collision detection
+          are required for this reset path; batched model parameters are rejected. Sleeping is supported by the fixed-capacity
+          path and has dedicated state-preservation coverage.
+        </p>
+        <p>
+          Unused physical slots still run physics. Per-group conditional nodes skip unnecessary reset copies, but they do not
+          make the group’s physics row count dynamic. This backend favors throughput when the population-capacity envelope is
+          known.
+        </p>
+        <p class="source-line">
+          Code: <a href="heterogeneous.py">heterogeneous.py</a>. Example:
+          <a href="heterogeneous_device_example.py">heterogeneous_device_example.py</a>.
+        </p>
+      </section>
+
+      <section id="reset-planner">
+        <span class="section-number">mjwarp / 06</span>
+        <h2>DeviceResetPlanner: transactional slot assignment.</h2>
+        <pre data-signature="DeviceResetPlanner"><code>DeviceResetPlanner(
+    group_offsets,
+    group_model_ids,
+    model_to_group,
+    slot_world_ids,
+    world_group,
+    world_row,
+    world_model_ids,
+    device = None,
+)</code></pre>
+        <p>
+          This is a lower-level planner in <code>mujoco_warp.experimental.device_reset</code>, constructed by the fixed runner.
+          All input arrays are one-dimensional int32 arrays on the selected device. Construction reads them on the host once to
+          verify a consistent catalog and one-to-one world/slot mapping.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Input</th>
+                <th>Meaning</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th><code>group_offsets</code></th>
+                <td>Length G+1; partitions a packed physical-slot array.</td>
+              </tr>
+              <tr>
+                <th><code>group_model_ids</code>, <code>model_to_group</code></th>
+                <td>Group → catalog model; catalog model → group or −1 for unprovisioned models.</td>
+              </tr>
+              <tr>
+                <th><code>slot_world_ids</code></th>
+                <td>Length S; logical world ID in each physical slot, or −1 when vacant.</td>
+              </tr>
+              <tr>
+                <th><code>world_group</code>, <code>world_row</code>, <code>world_model_ids</code></th>
+                <td>Length N; logical-to-physical mapping. <code>world_row</code> is local to its group.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          <code>plan(requests)</code> clears transaction scratch, counts selected departures/arrivals, validates destination
+          capacity after releasing selected source slots, releases sources, builds free-row lists, and assigns destinations.
+          Capacity is checked as:
+        </p>
+        <pre><code>occupancy[group] - outgoing[group] + incoming[group] &lt;= capacity[group]</code></pre>
+        <p>
+          Both sides of a full-batch swap can therefore succeed without spare slots. Unselected worlds retain their physical
+          rows. Selected worlds, including same-model resets, may receive different rows. Assignment order is unspecified.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Device result</th>
+                <th>Meaning</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th><code>transaction_status</code></th>
+                <td>int32[2]: current error bits and committed reset count.</td>
+              </tr>
+              <tr>
+                <th><code>status</code></th>
+                <td>
+                  Sticky int32[1]: bit value 1 = invalid/unprovisioned model; bit value 2 = capacity exhaustion.
+                  <code>clear_status()</code> enqueues a clear.
+                </td>
+              </tr>
+              <tr>
+                <th><code>reset_mask</code></th>
+                <td>Length S, indexed by packed physical row. Marks released source rows and assigned destination rows.</td>
+              </tr>
+              <tr>
+                <th><code>group_reset_count</code></th>
+                <td>Unique flagged physical rows per group; drives conditional initialization.</td>
+              </tr>
+              <tr>
+                <th><code>epoch</code></th>
+                <td>uint64[N], incremented for each successfully reset logical world.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Invalid or over-capacity transactions preserve requests, assignments, packed slots, and epochs. Successful requests
+          become −1. The planner itself does not initialize physics state: the runner must copy model defaults into all flagged
+          rows before physics. Group-global contact buffers are rebuilt by physics; a policy callback immediately after reset
+          must not consume contacts from the preceding layout.
+        </p>
+        <p>
+          Planning is O(N + S + G) for slot maintenance, in addition to state-copy traffic. Capture skips maintenance when no
+          valid request exists; eager execution uses guarded launches rather than host evaluation of a conditional node. There
+          is no host fallback or implicit growth. Mutating mappings concurrently from another stream is unsupported.
+        </p>
+        <p class="source-line">
+          Code: <a href="device_reset.py">device_reset.py</a>. Tests:
+          <a href="device_reset_test.py">device_reset_test.py</a> and
+          <a href="heterogeneous_device_reset_test.py">runner reset tests</a>.
+        </p>
+      </section>
+
+      <section id="model-worklist">
+        <span class="section-number">mjwarp / 07</span>
+        <h2>ModelWorklist: grouping without per-model capacity.</h2>
+        <pre data-signature="ModelWorklist"><code>ModelWorklist(world_model_ids, num_models, device = None)</code></pre>
+        <p>
+          The pooled runner replaces fixed physical-slot assignment with a grouped list of logical worlds.
+          <code>world_model_ids</code> is an existing int32[N] device array. Construction validates its initial values once on
+          the host, allocates worklist scratch, and builds the initial ranges.
+        </p>
+        <div class="sequence">
+          <span>Validate all requests</span><b>→</b><span>Commit IDs / epochs</span><b>→</b
+          ><span>If IDs changed: histogram</span><b>→</b><span>Prefix model counts</span><b>→</b><span>Scatter world IDs</span>
+        </div>
+        <p>
+          The histogram and scatter use parallel world threads and atomics. The catalog prefix sum currently uses one GPU thread
+          looping over K models, appropriate to the prototype’s small catalog. It is not a general many-thousand-model sorting
+          implementation.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Array / method</th>
+                <th>Contract</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th><code>model_worlds</code></th>
+                <td>int32[N] grouped world IDs. Each world appears once.</td>
+              </tr>
+              <tr>
+                <th><code>model_offsets</code>, <code>model_counts</code></th>
+                <td>
+                  int32[K+1] range boundaries and int32[K] population counts. Model m owns
+                  <code>[offsets[m], offsets[m+1])</code>.
+                </td>
+              </tr>
+              <tr>
+                <th><code>reset_mask</code>, <code>epoch</code></th>
+                <td>
+                  Logical-world mask and uint64 episode generations. Unlike DeviceResetPlanner, this mask is indexed by world,
+                  not physical slot.
+                </td>
+              </tr>
+              <tr>
+                <th><code>plan(requests)</code></th>
+                <td>
+                  All-or-none validation/commit; same-model requests still reset epochs/state. Captured execution rebuilds
+                  worklists only if an assignment changed. Eager calls rebuild without a host condition read.
+                </td>
+              </tr>
+              <tr>
+                <th><code>rebuild()</code>, <code>clear_status()</code></th>
+                <td>Graph-recordable worklist rebuild and sticky-error clear.</td>
+              </tr>
+              <tr>
+                <th><code>status</code>, <code>transaction_status</code></th>
+                <td>
+                  Sticky invalid-model bit value 1; current [error bits, committed reset count]. No per-model
+                  capacity-exhaustion bit is needed.
+                </td>
+              </tr>
+              <tr>
+                <th><code>workspace_bytes</code></th>
+                <td>Planner-owned array bytes, excluding the bound world-model array.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Validation runs before assignment changes in a separate ordered kernel. One invalid request rejects the whole
+          transaction and leaves requests pending. This atomicity describes reset metadata, not a rollback of the subsequent
+          physics step. Existing episodes continue after rejection.
+        </p>
+        <p>
+          Validation scans N worlds each step. Rebuilding costs O(N + K) and uses atomic counters; there is no per-world
+          allocation. State reset is performed by the caller after planning, on the same ordered stream.
+        </p>
+        <p class="source-line">
+          Code: <a href="pooled_worklist.py">pooled_worklist.py</a>. Tests:
+          <a href="pooled_worklist_test.py">pooled_worklist_test.py</a>.
+        </p>
+      </section>
+
+      <section id="pooled-api">
+        <span class="section-number">mjwarp / 08</span>
+        <h2>PooledHeterogeneousWorlds: the integration API.</h2>
+        <pre data-signature="PooledHeterogeneousWorlds"><code>PooledHeterogeneousWorlds(
+    models,
+    world_model_ids,
+    *,
+    batch_size = 4096,
+    device = None,
+    data_kwargs: Mapping[int, Mapping[str, int]] | None = None,
+    scratch_bytes = 256 &lt;&lt; 20,
+    observation_fields = (&#x27;sensordata&#x27;,),
+    virtual_reserve_bytes = 4 &lt;&lt; 30,
+)</code></pre>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Parameter</th>
+                <th>Effect</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th><code>models</code>, <code>world_model_ids</code></th>
+                <td>
+                  Immutable host model catalog and initial logical assignments. Every catalog model is prepared, even if
+                  initially unused.
+                </td>
+              </tr>
+              <tr>
+                <th><code>batch_size=4096</code></th>
+                <td>Shared physics working rows B. It is not the total logical world count N.</td>
+              </tr>
+              <tr>
+                <th><code>device=None</code></th>
+                <td>Uses Warp’s selected device; CUDA and the modified VMM/scratch APIs are required.</td>
+              </tr>
+              <tr>
+                <th><code>data_kwargs=None</code></th>
+                <td>
+                  Per-model <code>make_data</code> options, such as <code>nconmax</code> and <code>njmax</code>. Must not
+                  override <code>nworld</code>.
+                </td>
+              </tr>
+              <tr>
+                <th><code>scratch_bytes=256 &lt;&lt; 20</code></th>
+                <td>
+                  256 MiB preallocated scratch budget by default. Capture fails if insufficient. Benchmark configurations use
+                  their own explicit budgets.
+                </td>
+              </tr>
+              <tr>
+                <th><code>observation_fields=("sensordata",)</code></th>
+                <td>
+                  Additional top-level, world-indexed Data fields to persist after physics. Names are deduplicated. Global
+                  contact buffers and nested dotted names are not this interface.
+                </td>
+              </tr>
+              <tr>
+                <th><code>virtual_reserve_bytes=4 &lt;&lt; 30</code></th>
+                <td>
+                  4 GiB virtual reservation for one shared Data arena. Its committed prefix tracks the largest constructed
+                  layout.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <pre data-signature="PooledHeterogeneousWorlds.capture"><code>worlds.capture(
+    *,
+    steps_per_launch = 1,
+    before_reset: Callable | None = None,
+    before_step: Callable | None = None,
+)</code></pre>
+        <p>
+          <code>capture()</code> returns the graph and records <code>steps_per_launch</code> timesteps.
+          <code>before_reset(self)</code> records episode kernels reading previous persistent observations and writing reset
+          requests. <code>before_step(self)</code> records controls or custom initialization after selected states have been
+          reset. Python callbacks execute while recording; their GPU operations replay.
+        </p>
+        <p>
+          <code>step()</code> requires a captured graph and only calls <code>wp.capture_launch</code>. There is no pooled host
+          reset method or eager physics fallback. <code>memory_report()</code> returns owned-byte accounting from allocation
+          metadata outside capture; it does not inspect model occupancy or read device state.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Public state</th>
+                <th>Meaning</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th><code>state</code></th>
+                <td>A namespace of stable persistent arrays with logical-world leading dimension.</td>
+              </tr>
+              <tr>
+                <th><code>world_model_ids</code>, <code>reset_model_ids</code></th>
+                <td>int32[N] current model IDs and requests (−1 means no reset).</td>
+              </tr>
+              <tr>
+                <th><code>device_reset_status</code>, <code>device_reset_epoch</code></th>
+                <td>Aliases of the worklist’s sticky error array and per-world epoch array.</td>
+              </tr>
+              <tr>
+                <th><code>worklist</code></th>
+                <td>ModelWorklist instance; exposes counts, ranges, reset mask, and current transaction status.</td>
+              </tr>
+              <tr>
+                <th><code>physics_overflow</code></th>
+                <td>Sticky int32[N] OR of per-working-row physics overflow flags.</td>
+              </tr>
+              <tr>
+                <th><code>physics_nonfinite</code></th>
+                <td>
+                  Sticky int32[N] flag for nonfinite qpos or qvel after any processed chunk; not a scan of every Data field.
+                </td>
+              </tr>
+              <tr>
+                <th><code>graph</code>, <code>nworld</code>, <code>batch_size</code>, <code>steps_per_launch</code></th>
+                <td>Captured execution object and configured sizes.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <h3>Persistent layout and policy access</h3>
+        <pre><code>time, qpos, qvel, act, history, qacc_warmstart, ctrl,
+qfrc_applied, xfrc_applied, eq_active, mocap_pos, mocap_quat, userdata</code></pre>
+        <p>
+          These integration fields are always retained, together with requested observations. For each field, the runner finds
+          the maximum per-world element count across models. A one-dimensional Data field becomes <code>(N,)</code>; other
+          fields become <code>(N, max_width)</code>. Vector/matrix element dtypes remain their Warp dtypes, while additional
+          array dimensions are flattened into the width. Use the current model to interpret valid prefixes.
+        </p>
+        <p>
+          Reset kernels copy new-model defaults and zero the remaining padded tail. Unselected worlds retain their persistent
+          state until physics advances them. Observations are copied out after physics, but only integration fields are gathered
+          back into the next chunk. Reset-time observation values are templates; observations that require physics are refreshed
+          when that step runs.
+        </p>
+        <p>
+          Persistent tensors can be exported without a framework-side copy. Internal gather/scatter remains device-to-device
+          copying. Replacing arrays referenced by the graph or mutating shared model specialization after capture is
+          unsupported.
+        </p>
+        <p class="source-line">
+          Code: <a href="pooled.py">pooled.py</a>. Public imports: <a href="__init__.py">mujoco_warp.experimental</a>.
+        </p>
+      </section>
+
+      <section id="pooled-implementation">
+        <span class="section-number">mjwarp / 09</span>
+        <h2>From startup allocation to chunk replay.</h2>
+        <h3>Construction</h3>
+        <ol>
+          <li>
+            Validate initial IDs, sizes, device, and requested fields. Reject sleeping-enabled models. Require collision
+            detection and reject a Model control callback.
+          </li>
+          <li>
+            Create one <code>_SharedDataArena</code>. For each model, convert the host model, rewind the arena cursor to zero,
+            and construct <code>io.make_data(..., nworld=B)</code> through <code>wp.ScopedAllocator</code>.
+          </li>
+          <li>
+            Commit arena pages as needed during construction. Different model layouts overlap from the same base. Arena
+            high-water usage is the maximum constructed span, including alignment/initialization temporaries; individual frees
+            are no-ops.
+          </li>
+          <li>
+            Create one-world default Data for each model, reset it, and retain only fields needed to seed, reset, gather, or
+            scatter.
+          </li>
+          <li>
+            Allocate persistent state, worklists, request/status arrays, chunk cursors, working IDs, and scratch. Prepare
+            flattened views and launch specifications once. Initialize every persistent world from its model defaults.
+          </li>
+        </ol>
+        <p>
+          The shared arena uses VMM in this implementation, but a sufficiently sized ordinary allocation could implement the
+          same overlapping-layout strategy. The catalog’s immutable Model arrays remain separate and ordinary-allocated.
+        </p>
+        <h3>Captured timestep</h3>
+        <pre class="pseudocode"><code>before_reset(worlds)                         # record episode producer
+worklist.plan(reset_model_ids)               # validate, commit, regroup if needed
+if GPU committed_reset_count != 0:
+    reset selected persistent fields
+before_step(worlds)                          # record policy / reset customization
+
+for each startup catalog model:             # expanded while constructing graph
+    GPU cursor = model_offsets[model]
+    GPU limit  = model_offsets[model + 1]
+    while GPU cursor &lt; limit:               # device-controlled conditional body
+        working_ids = next B IDs, padded with -1
+        initialize working fields
+        gather persistent integration state
+        clear dense constraint padding
+        forward.step(model, working_data)
+        record sticky diagnostics
+        scatter integration state and observations
+        GPU cursor += B</code></pre>
+        <p class="caption">
+          Pseudocode. The actual implementation records <code>wp.capture_if</code> and <code>wp.capture_while</code>; it does
+          not run Python condition checks during replay.
+        </p>
+        <h3>Per-chunk initialization</h3>
+        <p>
+          <code>_process_chunk</code> seeds retained fields from one-world templates, then gathers current integration state for
+          valid working IDs. Static pose/orientation fields <code>xpos</code>, <code>xquat</code>, <code>xmat</code>,
+          <code>ximat</code>, <code>geom_xpos</code>, <code>geom_xmat</code>, and <code>overflow</code> are also seeded. Vacant
+          rows keep defaults and are excluded from scatter and logical diagnostics.
+        </p>
+        <p>
+          For dense models, <code>data.efc.J</code> and <code>data.efc.state</code> are zeroed before each chunk. Dense solver
+          tiles read padded/inactive entries that ordinary Data leaves zero. Aliased layouts can overwrite those bytes. A
+          targeted 33/35-velocity-DOF regression with active joint limits caught NaNs when those clears were omitted.
+        </p>
+        <p>
+          Scratch is rewound at the start of recording each model’s chunk body, and peak usage is sampled after recording its
+          physics. At replay, repeated chunks use identical working/scratch addresses. Model branches execute sequentially;
+          empty populations skip their physics body.
+        </p>
+        <h3>Scaling costs</h3>
+        <pre><code>Persistent storage ≈ N × sum(max model width of each retained field × element bytes)
+Shared Data       ≈ page_round(max model Data-layout high-water bytes at B rows)
+Scratch           = explicit startup scratch budget
+Chunk count       = sum over models m of ceil(population[m] / B)</code></pre>
+        <p>
+          Additional costs include model arrays, defaults, mappings, and graph/runtime overhead. The current reset pass launches
+          per-model/per-field kernels over N logical rows and the maximum field width when resets occur. It does not yet process
+          a compact list containing only selected reset worlds. Final partial chunks still run B physics rows.
+        </p>
+        <p class="source-line">
+          Implementation entry points: <code>_SharedDataArena</code>, <code>_reset_persistent</code>,
+          <code>_process_chunk</code>, and <code>capture</code> in <a href="pooled.py">pooled.py</a>.
+        </p>
+      </section>
+
+      <section id="integration">
+        <span class="section-number">mjwarp / 10</span>
+        <h2>A working integration example.</h2>
+        <p>
+          The example uses six worlds, three small robot models, two working rows, and an 8 MiB scratch buffer. GPU episode
+          logic changes the whole population at ticks 8, 16, and 24. Controls are written through stable logical-world arrays.
+          The graph contains eight steps per launch and is replayed four times.
+        </p>
+        <details open>
+          <summary><strong>Source: pooled_example.py</strong> · embedded from the implementation</summary>
+          <pre
+            data-source="pooled_example.py"
+          ><code>&quot;&quot;&quot;GPU episode logic changes the entire robot population under one graph.
+
+uv run --no-sync python -m mujoco_warp.experimental.pooled_example
+&quot;&quot;&quot;
+
+import json
+
+import numpy as np
+import warp as wp
+
+from mujoco_warp.experimental import PooledHeterogeneousWorlds
+from mujoco_warp.experimental.heterogeneous_device_example import _robot
+
+wp.set_module_options({&quot;enable_backward&quot;: False})
+
+
+@wp.kernel
+def _episodes(
+  # In:
+  tick: wp.array[int],
+  # Out:
+  requests_out: wp.array[int],
+):
+  world = wp.tid()
+  if tick[0] == 8:
+    requests_out[world] = 1  # Every world becomes a two-joint robot.
+  elif tick[0] == 16:
+    requests_out[world] = 2  # Every world becomes a three-joint robot.
+  elif tick[0] == 24:
+    requests_out[world] = world % 3  # Return to a heterogeneous population.
+
+
+@wp.kernel
+def _advance_tick(
+  # Data out:
+  tick_out: wp.array[int],
+):
+  tick_out[0] += 1
+
+
+@wp.kernel
+def _actions(
+  # Data out:
+  ctrl_out: wp.array2d[float],
+):
+  world, actuator = wp.tid()
+  ctrl_out[world, actuator] = 0.1 * float(world + 1)
+
+
+def main():
+  worlds = PooledHeterogeneousWorlds(
+    [_robot(1), _robot(2), _robot(3)],
+    np.arange(6, dtype=np.int32) % 3,
+    batch_size=2,
+    scratch_bytes=8 &lt;&lt; 20,
+    device=&quot;cuda:0&quot;,
+  )
+  tick = wp.zeros(1, dtype=int, device=worlds.device)
+
+  def episodes(batch):
+    wp.launch(_episodes, dim=batch.nworld, inputs=[tick], outputs=[batch.reset_model_ids], device=batch.device)
+    wp.launch(_advance_tick, dim=1, outputs=[tick], device=batch.device)
+
+  def actions(batch):
+    wp.launch(_actions, dim=batch.state.ctrl.shape, outputs=[batch.state.ctrl], device=batch.device)
+
+  worlds.capture(steps_per_launch=8, before_reset=episodes, before_step=actions)
+  graph, pointer = worlds.graph, worlds.state.qpos.ptr
+  for _ in range(4):
+    worlds.step()
+  # Inspection happens only after the complete GPU-driven rollout.
+  assert worlds.graph is graph and worlds.state.qpos.ptr == pointer
+  np.testing.assert_array_equal(worlds.device_reset_epoch.numpy(), 3)
+  assert not np.any(worlds.device_reset_status.numpy())
+  assert not np.any(worlds.physics_overflow.numpy())
+  assert not np.any(worlds.physics_nonfinite.numpy())
+  print(
+    json.dumps(
+      {
+        &quot;final_model_ids&quot;: worlds.world_model_ids.numpy().tolist(),
+        &quot;resets_per_world&quot;: worlds.device_reset_epoch.numpy().tolist(),
+        &quot;same_graph_and_state_pointer&quot;: True,
+        &quot;memory&quot;: worlds.memory_report(),
+      },
+      indent=2,
+    )
+  )
+
+
+if __name__ == &quot;__main__&quot;:
+  main()</code></pre>
+        </details>
+        <p>
+          The final <code>numpy()</code> calls are diagnostics after the rollout. They are not part of reset execution. For a
+          learning task, the episode kernel can read termination state and select a model; the action kernel can dispatch by
+          <code>world_model_ids</code>. Task-specific reward, randomization, and policy/observation schemas remain application
+          responsibilities.
+        </p>
+        <div class="note">
+          <p>
+            <strong>Callback contract:</strong> allocate persistent callback arrays before capture. Callbacks enqueue device
+            work and must not make rollout decisions by reading device data on the CPU. Temporaries allocated under capture
+            scratch must finish before physics reuses those addresses. A reset mask is available through
+            <code>worlds.worklist.reset_mask</code> for device-side initialization after default reset.
+          </p>
+        </div>
+        <p>
+          To read previous episode observations, use <code>before_reset</code>. To write controls or customize newly reset
+          persistent state, use <code>before_step</code>. Use the correct model-specific field widths. For an observation that
+          requires forward physics at a new reset state, account for when that value becomes available rather than assuming the
+          default template is a computed observation.
+        </p>
+        <pre><code>cd /home/mhaiderbhai/code/mustafa_warp
+uv run build_lib.py --quick
+cd ../mustafa_mjwarp
+uv sync --extra dev --inexact
+uv run --no-sync python -m mujoco_warp.experimental.pooled_example</code></pre>
+        <p class="small muted">
+          The mjwarp fork’s pyproject links <code>warp-lang</code> to <code>../mustafa_warp</code> as an editable dependency.
+          The tested build uses CUDA toolkit 13.2 and driver 595.91.07. The quick build requires a sufficiently recent driver
+          for the installed toolkit.
+        </p>
+      </section>
+
+      <section id="performance">
+        <span class="section-number">mjwarp / 11</span>
+        <h2>Memory accounting and measured tradeoffs.</h2>
+        <p>
+          <code>PooledHeterogeneousWorlds.memory_report()</code> counts models, padded persistent state, retained templates,
+          worklists/control arrays, committed shared Data, and the entire scratch allocation. It separately exposes virtual
+          reservation bytes, arena high-water bytes, and sampled peak physics scratch usage. It excludes CUDA context, JIT code,
+          graph metadata, allocator caches, and any runtime-managed allocations outside those counted buffers.
+        </p>
+        <p>
+          The following values are embedded from saved JSON benchmark outputs. Each run uses 8,192 logical worlds and the same
+          graph through mixed → all humanoids → all single arms → mixed populations.
+        </p>
+        <div class="table-wrap">
+          <table id="engineering-benchmarks">
+            <thead>
+              <tr>
+                <th>Working rows</th>
+                <th>Scratch budget<br />MiB</th>
+                <th>Owned total<br />MB</th>
+                <th>Mixed<br />M steps/s</th>
+                <th>All humanoids<br />M steps/s</th>
+                <th>All single arms<br />M steps/s</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row"><a href="../../benchmarks/heterogeneous_results/pooled_1024_8192.json">1,024</a></th>
+                <td>64</td>
+                <td>108.7</td>
+                <td>2.555</td>
+                <td>2.953</td>
+                <td>2.886</td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="../../benchmarks/heterogeneous_results/pooled_2731_8192.json">2,731</a></th>
+                <td>144</td>
+                <td>249.2</td>
+                <td>6.416</td>
+                <td>6.208</td>
+                <td>7.206</td>
+              </tr>
+              <tr>
+                <th scope="row"><a href="../../benchmarks/heterogeneous_results/pooled_4096_8192.json">4,096</a></th>
+                <td>208</td>
+                <td>360.4</td>
+                <td>5.490</td>
+                <td>7.346</td>
+                <td>9.981</td>
+              </tr>
+            </tbody>
+            <caption>
+              Totals include full preallocated scratch. MB = 1,000,000 bytes; MiB = 1,048,576 bytes. Throughput counts
+              individual world timesteps.
+            </caption>
+          </table>
+        </div>
+        <div class="grid2">
+          <article class="card">
+            <h3>Why 2,731 rows fit the mixed case</h3>
+            <p class="small">
+              The population is 2,731 dual-arm, 2,731 humanoid, and 2,730 single-arm worlds. A 2,731-row workspace needs one
+              chunk per model. A 1,024-row workspace needs nine chunks total; a 4,096-row workspace still needs three but
+              performs more vacant-row work.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Why 4,096 rows help homogeneous stages</h3>
+            <p class="small">
+              All 8,192 worlds fit in two chunks of the active model. Empty model branches skip physics. The shared Data and
+              scratch allocations are unchanged when the population changes.
+            </p>
+          </article>
+        </div>
+        <p style="margin-top: 22px">
+          At 2,731 working rows, persistent state is 7.63 MB, shared Data is 90.18 MB, scratch is 150.99 MB, and remaining owned
+          arrays total approximately 0.42 MB. Scratch’s sampled peak is 142.48 MB; unused budget remains allocated. Default API
+          scratch is 256 MiB, while this measured run explicitly uses 144 MiB.
+        </p>
+        <details>
+          <summary><strong>Methodology and comparison boundaries</strong></summary>
+          <p class="small" style="margin-top: 14px">
+            RTX PRO 6000 Blackwell Workstation Edition; MuJoCo 3.12.1; local Warp 1.19.0.dev0. Primitive arm models and the
+            repository humanoid, constant controls 0.05, timestep 0.002 seconds, Newton 10 iterations / 50 line-search
+            iterations. Capacity: 16 contacts and 64 constraint rows per working world. Ten timesteps per graph launch. GPU
+            episode resets every 200 steps. Each population stage has five warmup and five timed 200-step rollouts; times are
+            CUDA-event medians. Runs were isolated from other compute tests. Every pooled run recorded zero sticky
+            overflow/nonfinite worlds and preserved graph and persistent pointers.
+          </p>
+          <p class="small">
+            These are physics measurements, not training, rendering, or policy throughput. Contact capacities must be selected
+            for the application. Earlier fixed/sleep array totals exclude graph scratch; pooled totals include preallocated
+            scratch. Do not compute cross-method memory reductions as if those accounting bases were identical.
+          </p>
+        </details>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Earlier comparison</th>
+                <th>Observed result</th>
+                <th>Interpretation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th>Sleep union vs fixed groups<br />16 contacts / 64 constraints</th>
+                <td>Sleep: 627.1 MB, 5.103 M steps/s.<br />Ordinary groups: 202.4 MB, 6.746 M steps/s.</td>
+                <td>
+                  Grouping removes inactive union state. Array totals exclude graph scratch. Both used the same PR #1680 physics
+                  checkout.
+                </td>
+              </tr>
+              <tr>
+                <th>Fixed groups with GPU reset machinery</th>
+                <td>
+                  Baseline with periodic resets: 7.108 M.<br />Enabled, no type changes: 6.940 M.<br />96 switches / 10 steps:
+                  6.662 M.
+                </td>
+                <td>Small idle overhead for a known capacity envelope. Over-capacity transactions reject on GPU.</td>
+              </tr>
+              <tr>
+                <th>Fixed homogeneous worlds</th>
+                <td>
+                  Ordinary grouping within 0.3% of original API. Original humanoid: 11.872 M; single arm: 17.984 M steps/s.
+                </td>
+                <td>
+                  The pooled path adds gather/scatter, initialization, and loops. Earlier homogeneous tests used different
+                  reset/warmup conditions.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          The separate DynamicTable benchmark measured about 0.079 ms for 57,344 rows and 0.129 ms for 114,695 rows at 8,192
+          worlds, with 22.3 MiB of table-owned storage. It exercises append/initialization/grouping, not MuJoCo physics, and
+          excludes physical growth. VMM’s per-region page granularity can be expensive for small independent columns.
+        </p>
+        <p class="source-line">
+          Full methodology: <a href="README.md">README.md</a>. Scripts:
+          <a href="../../benchmarks/heterogeneous_pooled.py">heterogeneous_pooled.py</a>,
+          <a href="../../benchmarks/heterogeneous_device_reset.py">heterogeneous_device_reset.py</a>,
+          <a href="../../benchmarks/heterogeneous.py">heterogeneous.py</a>.
+        </p>
+      </section>
+
+      <section id="validation">
+        <span class="section-number">Verification / 12</span>
+        <h2>Correctness evidence and remaining work.</h2>
+        <p>
+          The implementation validation completed with <strong>383 passed and 11 skipped</strong> across experimental tests and
+          existing IO, forward, sleeping, and history regressions. This report records that completed run; documentation
+          generation does not imply the entire suite was rerun.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Area</th>
+                <th>Behavior checked</th>
+                <th>Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th>VMM</th>
+                <td>
+                  Page-rounded growth, preserved contents/address, new-page zeroing, view/DLPack ownership, capture rejection,
+                  replay after crossing a granule.
+                </td>
+                <td><a href="../../../mustafa_warp/warp/tests/test_virtual_memory.py">test_virtual_memory.py</a></td>
+              </tr>
+              <tr>
+                <th>Dynamic tables</th>
+                <td>
+                  Concurrent bounded append, invalid/count overflow, stable handles, deletion/reuse, grouping, component
+                  preservation, captured growth.
+                </td>
+                <td><a href="../../../mustafa_warp/warp/tests/test_dynamic_table.py">test_dynamic_table.py</a></td>
+              </tr>
+              <tr>
+                <th>Capture scratch</th>
+                <td>
+                  Native scan, conditional reuse, graph/array/child ownership, latched exhaustion, CPU rejection. Separate
+                  complete-step proof includes nested solver loops.
+                </td>
+                <td><a href="../../../mustafa_warp/warp/tests/test_capture_scratch.py">test_capture_scratch.py</a></td>
+              </tr>
+              <tr>
+                <th>Fixed resets</th>
+                <td>
+                  Swaps, capacity rejection/retry, unchanged unselected rows, initial-unused models, ordinary/VMM storage,
+                  sleeping/history/contact state.
+                </td>
+                <td>
+                  <a href="heterogeneous_device_reset_test.py">reset tests</a>,
+                  <a href="heterogeneous_device_state_test.py">state tests</a>
+                </td>
+              </tr>
+              <tr>
+                <th>Pooled physics</th>
+                <td>
+                  All-world changes, multiple chunks, invalid transactions, stable pointers and memory, all four integrators,
+                  delayed actuation/sensors, static contacts, mocap/applied forces, dense padding.
+                </td>
+                <td><a href="pooled_test.py">pooled_test.py</a>, <a href="pooled_state_test.py">pooled_state_test.py</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Focused GPU-loop tests replace array readback and explicit device-synchronization functions with failures during
+          capture/replay. Numeric comparisons use independent per-world physics references. Warp allocator/graph regressions, a
+          CUDA-disabled native syntax check, documentation build, and repository lint/kernel checks also passed during
+          implementation validation.
+        </p>
+        <pre><code># From mustafa_mjwarp:
+uv run --no-sync pytest -n 8 mujoco_warp/experimental/*_test.py \
+  mujoco_warp/_src/io_test.py mujoco_warp/_src/forward_test.py \
+  mujoco_warp/_src/sleep_test.py mujoco_warp/_src/history_test.py
+
+# From mustafa_warp:
+uv run warp/tests/test_virtual_memory.py
+uv run warp/tests/test_dynamic_table.py
+uv run warp/tests/test_capture_scratch.py</code></pre>
+        <h3>Current limits</h3>
+        <ul>
+          <li>
+            Logical world count, catalog topology, reset defaults, shared model parameters, and physical budgets are fixed at
+            startup.
+          </li>
+          <li>
+            Pooled sleeping requires additional persistent derived caches and is rejected today. Control callbacks belong in the
+            global persistent-state policy path.
+          </li>
+          <li>
+            One working arena and scratch buffer imply ordered model execution, not simultaneous independent graph execution
+            over the same storage.
+          </li>
+          <li>
+            Active-row physics, compact selected-reset lists, more precise temporary reuse, and packed persistent fields are
+            future optimizations.
+          </li>
+          <li>
+            Changing bodies/joints inside a model requires rebuilding model-relative metadata and kernel specializations;
+            switching among prepared models does not implement runtime topology editing.
+          </li>
+          <li>
+            Tensor ownership and DLPack views are covered; PyTorch integration was not exercised. A complete heterogeneous
+            task/reward/policy abstraction is outside this prototype.
+          </li>
+        </ul>
+      </section>
+
+      <section id="api-index">
+        <span class="section-number">Reference / 13</span>
+        <h2>API index by execution phase.</h2>
+        <p>
+          “Record / enqueue” means a Python method schedules GPU work, optionally into a captured graph. It does not mean Python
+          itself runs on the GPU. “Device function” means callable from a Warp kernel. Host diagnostics belong outside the GPU
+          reset loop.
+        </p>
+        <div class="api-filter js-only">
+          <label for="api-phase">Show phase</label
+          ><select id="api-phase">
+            <option value="all">All APIs</option>
+            <option value="setup">Host setup / capture construction</option>
+            <option value="record">Record / enqueue device work</option>
+            <option value="device">Device functions</option>
+            <option value="diagnostic">Host diagnostics</option></select
+          ><span id="api-filter-status" role="status" aria-live="polite"></span>
+        </div>
+        <div class="table-wrap">
+          <table id="api-index-table">
+            <thead>
+              <tr>
+                <th>API</th>
+                <th>Phase</th>
+                <th>Effect</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-phase="setup">
+                <th scope="row">
+                  <a href="#virtual-memory"><code>wp.VirtualMemory(...)</code></a>
+                </th>
+                <td><span class="phase-label setup">Setup / capture</span></td>
+                <td>Reserve addresses; optional initial commitment.</td>
+              </tr>
+              <tr data-phase="setup">
+                <th scope="row">
+                  <a href="#virtual-memory"><code>VirtualMemory.commit(bytes)</code></a>
+                </th>
+                <td><span class="phase-label setup">Setup / capture</span></td>
+                <td>Host physical growth outside capture; synchronize on growth.</td>
+              </tr>
+              <tr data-phase="setup">
+                <th scope="row">
+                  <a href="#virtual-memory"><code>VirtualMemory.array(...)</code></a>
+                </th>
+                <td><span class="phase-label setup">Setup / capture</span></td>
+                <td>Create an owner-retaining typed view; no backing growth.</td>
+              </tr>
+              <tr data-phase="setup">
+                <th scope="row">
+                  <a href="#virtual-memory"><code>VirtualMemory.close()</code></a>
+                </th>
+                <td><span class="phase-label setup">Setup / capture</span></td>
+                <td>Release storage after views and captured users are discarded.</td>
+              </tr>
+              <tr data-phase="setup">
+                <th scope="row">
+                  <a href="#dynamic-table"><code>DynamicTable(...)</code></a>
+                </th>
+                <td><span class="phase-label setup">Setup / capture</span></td>
+                <td>Reserve columns, scratch, and fixed metadata.</td>
+              </tr>
+              <tr data-phase="setup">
+                <th scope="row">
+                  <a href="#dynamic-table"><code>DynamicTable.ensure_capacity(rows)</code></a>
+                </th>
+                <td><span class="phase-label setup">Setup / capture</span></td>
+                <td>Commit regions and publish an accessible row prefix.</td>
+              </tr>
+              <tr data-phase="record">
+                <th scope="row">
+                  <a href="#dynamic-table"><code>DynamicTable.append_worlds(counts)</code></a>
+                </th>
+                <td><span class="phase-label record">Record / enqueue</span></td>
+                <td>Scan counts and reserve an all-or-none row batch.</td>
+              </tr>
+              <tr data-phase="record">
+                <th scope="row">
+                  <a href="#dynamic-table"><code>DynamicTable.compact()</code></a>
+                </th>
+                <td><span class="phase-label record">Record / enqueue</span></td>
+                <td>Group live rows and update handle locations.</td>
+              </tr>
+              <tr data-phase="record">
+                <th scope="row">
+                  <a href="#dynamic-table"><code>DynamicTable.clear()</code></a>
+                </th>
+                <td><span class="phase-label record">Record / enqueue</span></td>
+                <td>Invalidate live handles; retain physical backing.</td>
+              </tr>
+              <tr data-phase="record">
+                <th scope="row">
+                  <a href="#dynamic-table"><code>DynamicTable.clear_errors()</code></a>
+                </th>
+                <td><span class="phase-label record">Record / enqueue</span></td>
+                <td>Clear sticky device table error bits.</td>
+              </tr>
+              <tr data-phase="diagnostic">
+                <th scope="row">
+                  <a href="#dynamic-table"><code>DynamicTable.check_errors() / live_count</code></a>
+                </th>
+                <td><span class="phase-label diagnostic">Host diagnostic</span></td>
+                <td>Read back table counters; may raise on the host.</td>
+              </tr>
+              <tr data-phase="device">
+                <th scope="row">
+                  <a href="#dynamic-table"><code>append_row / append_rows</code></a>
+                </th>
+                <td><span class="phase-label device">Device function</span></td>
+                <td>Reserve bounded rows from a Warp kernel.</td>
+              </tr>
+              <tr data-phase="device">
+                <th scope="row">
+                  <a href="#dynamic-table"><code>entity_at / find_row / delete_entity</code></a>
+                </th>
+                <td><span class="phase-label device">Device function</span></td>
+                <td>Create/resolve generation handles and mark deletion.</td>
+              </tr>
+              <tr data-phase="setup">
+                <th scope="row">
+                  <a href="#capture-scratch"><code>wp.ScopedCaptureScratch(buffer)</code></a>
+                </th>
+                <td><span class="phase-label setup">Setup / capture</span></td>
+                <td>Prepare ownership and native arena metadata.</td>
+              </tr>
+              <tr data-phase="setup">
+                <th scope="row">
+                  <a href="#capture-scratch"><code>ScopedCaptureScratch.allocate / rewind</code></a>
+                </th>
+                <td><span class="phase-label setup">Setup / capture</span></td>
+                <td>Only in active capture; assign or reuse scratch offsets.</td>
+              </tr>
+              <tr data-phase="setup">
+                <th scope="row">
+                  <a href="#fixed-runner"><code>HeterogeneousWorlds(...)</code></a>
+                </th>
+                <td><span class="phase-label setup">Setup / capture</span></td>
+                <td>Construct separate model groups and physical capacities.</td>
+              </tr>
+              <tr data-phase="setup">
+                <th scope="row">
+                  <a href="#fixed-runner"><code>HeterogeneousWorlds.enable_device_resets()</code></a>
+                </th>
+                <td><span class="phase-label setup">Setup / capture</span></td>
+                <td>Prepare templates and planner before capture.</td>
+              </tr>
+              <tr data-phase="record">
+                <th scope="row">
+                  <a href="#fixed-runner"><code>HeterogeneousWorlds.reset_worlds_device()</code></a>
+                </th>
+                <td><span class="phase-label record">Record / enqueue</span></td>
+                <td>Plan reassignment and initialize flagged rows.</td>
+              </tr>
+              <tr data-phase="setup">
+                <th scope="row">
+                  <a href="#fixed-runner"><code>HeterogeneousWorlds.capture(...)</code></a>
+                </th>
+                <td><span class="phase-label setup">Setup / capture</span></td>
+                <td>Construct the fixed-group graph.</td>
+              </tr>
+              <tr data-phase="record">
+                <th scope="row">
+                  <a href="#fixed-runner"><code>HeterogeneousWorlds.step()</code></a>
+                </th>
+                <td><span class="phase-label record">Record / enqueue</span></td>
+                <td>Launch the graph or enqueue one eager physics step.</td>
+              </tr>
+              <tr data-phase="setup">
+                <th scope="row">
+                  <a href="#fixed-runner"><code>HeterogeneousWorlds.arrays(field)</code></a>
+                </th>
+                <td><span class="phase-label setup">Setup / capture</span></td>
+                <td>Access physical array views; no readback.</td>
+              </tr>
+              <tr data-phase="diagnostic">
+                <th scope="row">
+                  <a href="#fixed-runner"><code>HeterogeneousWorlds.locate / world_array</code></a>
+                </th>
+                <td><span class="phase-label diagnostic">Host diagnostic</span></td>
+                <td>Host mapping access, disabled after enabling GPU resets.</td>
+              </tr>
+              <tr data-phase="diagnostic">
+                <th scope="row">
+                  <a href="#fixed-runner"><code>HeterogeneousWorlds.inspect_layout / memory_report</code></a>
+                </th>
+                <td><span class="phase-label diagnostic">Host diagnostic</span></td>
+                <td>Outside capture; device occupancy/layout readback.</td>
+              </tr>
+              <tr data-phase="setup">
+                <th scope="row">
+                  <a href="#reset-planner"><code>DeviceResetPlanner(...)</code></a>
+                </th>
+                <td><span class="phase-label setup">Setup / capture</span></td>
+                <td>Validate mappings once and allocate slot-planner scratch.</td>
+              </tr>
+              <tr data-phase="record">
+                <th scope="row">
+                  <a href="#reset-planner"><code>DeviceResetPlanner.plan / clear_status</code></a>
+                </th>
+                <td><span class="phase-label record">Record / enqueue</span></td>
+                <td>Device slot transaction or sticky-status clear.</td>
+              </tr>
+              <tr data-phase="setup">
+                <th scope="row">
+                  <a href="#model-worklist"><code>ModelWorklist(...)</code></a>
+                </th>
+                <td><span class="phase-label setup">Setup / capture</span></td>
+                <td>Validate initial model IDs and allocate grouped worklists.</td>
+              </tr>
+              <tr data-phase="record">
+                <th scope="row">
+                  <a href="#model-worklist"><code>ModelWorklist.plan / rebuild / clear_status</code></a>
+                </th>
+                <td><span class="phase-label record">Record / enqueue</span></td>
+                <td>Device assignment transaction, grouping, or status clear.</td>
+              </tr>
+              <tr data-phase="setup">
+                <th scope="row">
+                  <a href="#pooled-api"><code>PooledHeterogeneousWorlds(...)</code></a>
+                </th>
+                <td><span class="phase-label setup">Setup / capture</span></td>
+                <td>Prepare all catalog models, state, shared Data, and scratch.</td>
+              </tr>
+              <tr data-phase="setup">
+                <th scope="row">
+                  <a href="#pooled-api"><code>PooledHeterogeneousWorlds.capture(...)</code></a>
+                </th>
+                <td><span class="phase-label setup">Setup / capture</span></td>
+                <td>Record callbacks and device-controlled chunk loops.</td>
+              </tr>
+              <tr data-phase="record">
+                <th scope="row">
+                  <a href="#pooled-api"><code>PooledHeterogeneousWorlds.step()</code></a>
+                </th>
+                <td><span class="phase-label record">Record / enqueue</span></td>
+                <td>Replay an existing graph; no eager fallback.</td>
+              </tr>
+              <tr data-phase="diagnostic">
+                <th scope="row">
+                  <a href="#pooled-api"><code>PooledHeterogeneousWorlds.memory_report()</code></a>
+                </th>
+                <td><span class="phase-label diagnostic">Host diagnostic</span></td>
+                <td>Host allocation accounting; no occupancy readback.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="source-card">
+          <h3>Source map</h3>
+          <ul class="source-list">
+            <li>
+              <a href="../../../mustafa_warp/warp/_src/context.py">Warp Python runtime</a> — public primitives, ctypes bindings,
+              graph ownership propagation.
+            </li>
+            <li>
+              <a href="../../../mustafa_warp/warp/native/warp.cu">Warp CUDA runtime</a> — VMM mapping, scratch arenas,
+              allocation/free routing; <a href="../../../mustafa_warp/warp/native/warp.cpp">CPU stubs</a>;
+              <a href="../../../mustafa_warp/warp/native/warp.h">native declarations</a>.
+            </li>
+            <li>
+              <a href="../../../mustafa_warp/warp/experimental/table.py">Warp dynamic tables</a> — device functions and table
+              orchestration.
+            </li>
+            <li>
+              <a href="heterogeneous.py">Fixed runner</a> and <a href="device_reset.py">slot planner</a>;
+              <a href="pooled.py">pooled runner</a> and <a href="pooled_worklist.py">model worklist</a>.
+            </li>
+            <li>
+              <a href="../../../mustafa_warp/design/cuda-virtual-memory.md">VMM design</a>,
+              <a href="../../../mustafa_warp/design/dynamic-component-tables.md">table design</a>,
+              <a href="../../../mustafa_warp/design/capture-scratch.md">scratch design</a>, and
+              <a href="README.md">mjwarp engineering notes</a>.
+            </li>
+            <li>
+              <a href="https://madrona-engine.github.io/shacklett_siggraph23.pdf">Madrona paper</a>; local
+              <a href="../../../madrona/src/mw/device/memory.cpp">device allocation requests</a> and
+              <a href="../../../madrona/src/mw/cuda_exec.cpp">host mapping service</a>. Madrona’s host-assisted growth is
+              distinct from the pooled runner’s precommitted replay.
+            </li>
+            <li>
+              <a href="https://github.com/google-deepmind/mujoco_warp/pull/1680">Sleep PR #1680</a>;
+              <a href="https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cuda-graphs.html">CUDA graphs</a>;
+              <a href="https://docs.nvidia.com/cuda/cuda-driver-api/cuda_driver_api/group__CUDA__VA.html">CUDA VMM</a>.
+            </li>
+          </ul>
+        </div>
+      </section>
+      <footer class="footer">
+        Standalone engineering report. Signatures, the runnable example, and pooled benchmark values were embedded from local
+        source/results. Reading and phase filtering require no network. Local source links assume this file remains in
+        <code>mujoco_warp/experimental</code> beside the documented checkout.
+      </footer>
+    </main>
+    <script type="application/json" id="benchmark-data">
+      [
+        {
+          "nworld": 8192,
+          "batch_size": 1024,
+          "memory": {
+            "nworld": 8192,
+            "batch_size": 1024,
+            "model_bytes": 101201,
+            "persistent_state_bytes": 7634944,
+            "defaults_bytes": 8676,
+            "worklist_bytes": 299076,
+            "shared_data_bytes": 33554432,
+            "shared_data_highwater_bytes": 33468928,
+            "virtual_reserved_bytes": 4294967296,
+            "capture_scratch_bytes": 67108864,
+            "capture_scratch_used_bytes": 53423872,
+            "total_bytes": 108707193
+          },
+          "stages": [
+            {
+              "name": "balanced",
+              "batch_step_ms": 3.206781311035156,
+              "active_environment_steps_per_second": 2554586.4234052193,
+              "sample_seconds": [
+                0.6413562622070312, 0.6406771240234375, 0.6414742431640625, 0.6409973754882813, 0.6414373779296875
+              ]
+            },
+            {
+              "name": "all_humanoid",
+              "batch_step_ms": 2.774137268066406,
+              "active_environment_steps_per_second": 2952990.1401417977,
+              "sample_seconds": [
+                0.5550589599609375, 0.5545430908203125, 0.5548274536132812, 0.554597900390625, 0.55483935546875
+              ]
+            },
+            {
+              "name": "all_single_arm",
+              "batch_step_ms": 2.8387274169921874,
+              "active_environment_steps_per_second": 2885800.1479691016,
+              "sample_seconds": [
+                0.5672239379882813, 0.5677269287109376, 0.5677454833984374, 0.5677745971679687, 0.5678140869140625
+              ]
+            },
+            {
+              "name": "balanced_again",
+              "batch_step_ms": 3.2085467529296876,
+              "active_environment_steps_per_second": 2553180.81075801,
+              "sample_seconds": [
+                0.6423214721679688, 0.64182470703125, 0.6406148071289063, 0.6414158325195313, 0.6417093505859375
+              ]
+            }
+          ],
+          "stage_model_counts": [
+            [2731, 2731, 2730],
+            [0, 8192, 0],
+            [0, 0, 8192],
+            [2731, 2731, 2730]
+          ],
+          "committed_world_resets": 327680,
+          "graph_reused": true,
+          "persistent_state_pointers_reused": true,
+          "device_reset_status": [0],
+          "physics_overflow_worlds": 0,
+          "physics_nonfinite_worlds": 0,
+          "notes": "All population changes, episode resets and chunk scheduling execute on GPU inside one graph. Each stage has five warmup samples and the requested timed 200-step samples. Reported memory includes preallocated capture scratch; older fixed-batch array reports exclude graph scratch."
+        },
+        {
+          "nworld": 8192,
+          "batch_size": 2731,
+          "memory": {
+            "nworld": 8192,
+            "batch_size": 2731,
+            "model_bytes": 101201,
+            "persistent_state_bytes": 7634944,
+            "defaults_bytes": 8676,
+            "worklist_bytes": 305904,
+            "shared_data_bytes": 90177536,
+            "shared_data_highwater_bytes": 89275648,
+            "virtual_reserved_bytes": 4294967296,
+            "capture_scratch_bytes": 150994944,
+            "capture_scratch_used_bytes": 142483312,
+            "total_bytes": 249223205
+          },
+          "stages": [
+            {
+              "name": "balanced",
+              "batch_step_ms": 1.27680908203125,
+              "active_environment_steps_per_second": 6415994.462513935,
+              "sample_seconds": [
+                0.25607861328125, 0.25536181640625, 0.2556868438720703, 0.25523143005371096, 0.25478533935546877
+              ]
+            },
+            {
+              "name": "all_humanoid",
+              "batch_step_ms": 1.3196395874023437,
+              "active_environment_steps_per_second": 6207755.570690037,
+              "sample_seconds": [
+                0.2649774169921875, 0.26392791748046873, 0.2645647888183594, 0.2635566101074219, 0.26332199096679687
+              ]
+            },
+            {
+              "name": "all_single_arm",
+              "batch_step_ms": 1.136856460571289,
+              "active_environment_steps_per_second": 7205834.935294633,
+              "sample_seconds": [
+                0.22747215270996093, 0.2273712921142578, 0.22787528991699219, 0.22723974609375, 0.2272816925048828
+              ]
+            },
+            {
+              "name": "balanced_again",
+              "batch_step_ms": 1.2827767944335937,
+              "active_environment_steps_per_second": 6386146.082114896,
+              "sample_seconds": [
+                0.2568834228515625, 0.256572509765625, 0.25603375244140625, 0.25623370361328124, 0.25655535888671877
+              ]
+            }
+          ],
+          "stage_model_counts": [
+            [2731, 2731, 2730],
+            [0, 8192, 0],
+            [0, 0, 8192],
+            [2731, 2731, 2730]
+          ],
+          "committed_world_resets": 327680,
+          "graph_reused": true,
+          "persistent_state_pointers_reused": true,
+          "device_reset_status": [0],
+          "physics_overflow_worlds": 0,
+          "physics_nonfinite_worlds": 0,
+          "notes": "All population changes, episode resets and chunk scheduling execute on GPU inside one graph. Each stage has five warmup samples and the requested timed 200-step samples. Reported memory includes preallocated capture scratch; older fixed-batch array reports exclude graph scratch."
+        },
+        {
+          "nworld": 8192,
+          "batch_size": 4096,
+          "memory": {
+            "nworld": 8192,
+            "batch_size": 4096,
+            "model_bytes": 101201,
+            "persistent_state_bytes": 7634944,
+            "defaults_bytes": 8676,
+            "worklist_bytes": 311364,
+            "shared_data_bytes": 134217728,
+            "shared_data_highwater_bytes": 133874176,
+            "virtual_reserved_bytes": 4294967296,
+            "capture_scratch_bytes": 218103808,
+            "capture_scratch_used_bytes": 213693184,
+            "total_bytes": 360377721
+          },
+          "stages": [
+            {
+              "name": "balanced",
+              "batch_step_ms": 1.4920802307128906,
+              "active_environment_steps_per_second": 5490321.385791702,
+              "sample_seconds": [
+                0.2984160461425781, 0.2985788269042969, 0.29829559326171873, 0.2982408752441406, 0.2984907531738281
+              ]
+            },
+            {
+              "name": "all_humanoid",
+              "batch_step_ms": 1.1151443481445313,
+              "active_environment_steps_per_second": 7346134.169653034,
+              "sample_seconds": [
+                0.22302886962890625, 0.2229219207763672, 0.22259088134765626, 0.22335183715820311, 0.22310301208496094
+              ]
+            },
+            {
+              "name": "all_single_arm",
+              "batch_step_ms": 0.8207798767089843,
+              "active_environment_steps_per_second": 9980751.51750407,
+              "sample_seconds": [
+                0.16415597534179688, 0.16390141296386718, 0.16451968383789062, 0.1640998077392578, 0.1648682861328125
+              ]
+            },
+            {
+              "name": "balanced_again",
+              "batch_step_ms": 1.4923609924316406,
+              "active_environment_steps_per_second": 5489288.477482934,
+              "sample_seconds": [
+                0.2984721984863281, 0.29861553955078124, 0.2986929016113281, 0.29845907592773435, 0.2981921691894531
+              ]
+            }
+          ],
+          "stage_model_counts": [
+            [2731, 2731, 2730],
+            [0, 8192, 0],
+            [0, 0, 8192],
+            [2731, 2731, 2730]
+          ],
+          "committed_world_resets": 327680,
+          "graph_reused": true,
+          "persistent_state_pointers_reused": true,
+          "device_reset_status": [0],
+          "physics_overflow_worlds": 0,
+          "physics_nonfinite_worlds": 0,
+          "notes": "All population changes, episode resets and chunk scheduling execute on GPU inside one graph. Each stage has five warmup samples and the requested timed 200-step samples. Reported memory includes preallocated capture scratch; older fixed-batch array reports exclude graph scratch."
+        }
+      ]
+    </script>
+    <script>
+      "use strict";
+      document.documentElement.classList.add("has-js");
+      const selector = document.getElementById("api-phase");
+      function filterApis() {
+        let visible = 0;
+        const rows = document.querySelectorAll("#api-index-table tbody tr");
+        rows.forEach((row) => {
+          row.hidden = selector.value !== "all" && row.dataset.phase !== selector.value;
+          if (!row.hidden) visible++;
+        });
+        document.getElementById("api-filter-status").textContent = `${visible} of ${rows.length} API entries`;
+      }
+      selector.addEventListener("change", filterApis);
+      filterApis();
+      function openDetailsForPrint() {
+        document.querySelectorAll("details").forEach((item) => {
+          item.dataset.openBeforePrint = item.open ? "1" : "0";
+          item.open = true;
+        });
+      }
+      function restoreDetailsAfterPrint() {
+        document.querySelectorAll("details[data-open-before-print]").forEach((item) => {
+          item.open = item.dataset.openBeforePrint === "1";
+          delete item.dataset.openBeforePrint;
+        });
+      }
+      addEventListener("beforeprint", openDetailsForPrint);
+      addEventListener("afterprint", restoreDetailsAfterPrint);
+      document.getElementById("print-report").addEventListener("click", () => window.print());
+      if ("IntersectionObserver" in window) {
+        const observer = new IntersectionObserver(
+          (entries) => {
+            const visible = entries
+              .filter((entry) => entry.isIntersecting)
+              .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+            if (!visible.length) return;
+            document.querySelectorAll("nav a").forEach((link) => {
+              if (link.hash === "#" + visible[0].target.id) link.setAttribute("aria-current", "location");
+              else link.removeAttribute("aria-current");
+            });
+          },
+          { rootMargin: "-5% 0px -65% 0px", threshold: 0 },
+        );
+        document.querySelectorAll("main section").forEach((section) => observer.observe(section));
+      }
+    </script>
+  </body>
+</html>

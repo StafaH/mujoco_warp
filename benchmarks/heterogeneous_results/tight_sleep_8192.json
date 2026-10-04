@@ -1,0 +1,80 @@
+{
+  "mode": "sleep",
+  "virtual": false,
+  "group_sleep": false,
+  "device": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "warp_version": "1.19.0.dev0",
+  "mujoco_version": "3.12.1",
+  "mjwarp_revision": "f89afae9decb475bcf0361fd81cbc9eaf589dfa7",
+  "mjwarp_path": "/home/mhaiderbhai/code/mjwarp-sleep-baseline",
+  "warp_path": "/home/mhaiderbhai/code/mustafa_warp",
+  "nworld": 8192,
+  "model_counts": [
+    2731,
+    2731,
+    2730
+  ],
+  "models": [
+    {
+      "nq": 21,
+      "nv": 20,
+      "nu": 14,
+      "nbody": 16,
+      "ngeom": 17
+    },
+    {
+      "nq": 28,
+      "nv": 27,
+      "nu": 21,
+      "nbody": 17,
+      "ngeom": 21
+    },
+    {
+      "nq": 14,
+      "nv": 13,
+      "nu": 7,
+      "nbody": 9,
+      "ngeom": 10
+    }
+  ],
+  "union": {
+    "nq": 63,
+    "nv": 60,
+    "nu": 42,
+    "nbody": 40,
+    "ngeom": 44
+  },
+  "nconmax": 16,
+  "njmax": 64,
+  "steps": 200,
+  "unroll": 10,
+  "seconds_samples": [
+    0.33267156982421875,
+    0.3244431457519531,
+    0.32002725219726563,
+    0.32106167602539065,
+    0.32107989501953127
+  ],
+  "host_seconds_samples": [
+    0.3326895189966308,
+    0.32445732000633143,
+    0.3200410529971123,
+    0.32107471900235396,
+    0.3210941170109436
+  ],
+  "env_steps_per_second": 5102779.792239362,
+  "milliseconds_per_batch_step": 1.6053994750976563,
+  "model_bytes": 336337,
+  "data_bytes": 626728976,
+  "compile_seconds": 1.2036282740009483,
+  "max_constraints": [
+    36
+  ],
+  "contacts": [
+    57302
+  ],
+  "overflow": [
+    0
+  ],
+  "all_states_finite": true
+}

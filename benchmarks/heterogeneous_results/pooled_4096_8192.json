@@ -1,0 +1,99 @@
+{
+  "nworld": 8192,
+  "batch_size": 4096,
+  "memory": {
+    "nworld": 8192,
+    "batch_size": 4096,
+    "model_bytes": 101201,
+    "persistent_state_bytes": 7634944,
+    "defaults_bytes": 8676,
+    "worklist_bytes": 311364,
+    "shared_data_bytes": 134217728,
+    "shared_data_highwater_bytes": 133874176,
+    "virtual_reserved_bytes": 4294967296,
+    "capture_scratch_bytes": 218103808,
+    "capture_scratch_used_bytes": 213693184,
+    "total_bytes": 360377721
+  },
+  "stages": [
+    {
+      "name": "balanced",
+      "batch_step_ms": 1.4920802307128906,
+      "active_environment_steps_per_second": 5490321.385791702,
+      "sample_seconds": [
+        0.2984160461425781,
+        0.2985788269042969,
+        0.29829559326171873,
+        0.2982408752441406,
+        0.2984907531738281
+      ]
+    },
+    {
+      "name": "all_humanoid",
+      "batch_step_ms": 1.1151443481445313,
+      "active_environment_steps_per_second": 7346134.169653034,
+      "sample_seconds": [
+        0.22302886962890625,
+        0.2229219207763672,
+        0.22259088134765626,
+        0.22335183715820311,
+        0.22310301208496094
+      ]
+    },
+    {
+      "name": "all_single_arm",
+      "batch_step_ms": 0.8207798767089843,
+      "active_environment_steps_per_second": 9980751.51750407,
+      "sample_seconds": [
+        0.16415597534179688,
+        0.16390141296386718,
+        0.16451968383789062,
+        0.1640998077392578,
+        0.1648682861328125
+      ]
+    },
+    {
+      "name": "balanced_again",
+      "batch_step_ms": 1.4923609924316406,
+      "active_environment_steps_per_second": 5489288.477482934,
+      "sample_seconds": [
+        0.2984721984863281,
+        0.29861553955078124,
+        0.2986929016113281,
+        0.29845907592773435,
+        0.2981921691894531
+      ]
+    }
+  ],
+  "stage_model_counts": [
+    [
+      2731,
+      2731,
+      2730
+    ],
+    [
+      0,
+      8192,
+      0
+    ],
+    [
+      0,
+      0,
+      8192
+    ],
+    [
+      2731,
+      2731,
+      2730
+    ]
+  ],
+  "committed_world_resets": 327680,
+  "graph_reused": true,
+  "persistent_state_pointers_reused": true,
+  "device_reset_status": [
+    0
+  ],
+  "physics_overflow_worlds": 0,
+  "physics_nonfinite_worlds": 0,
+  "notes": "All population changes, episode resets and chunk scheduling execute on GPU inside one graph. Each stage has five warmup samples and the requested timed 200-step samples. Reported memory includes preallocated capture scratch; older fixed-batch array reports exclude graph scratch."
+}

@@ -1,0 +1,306 @@
+{
+  "nworld": 8192,
+  "memory": "default",
+  "switched_worlds": 96,
+  "cold_reset_seconds": 0.04808944900287315,
+  "warm_reset_seconds": [
+    0.02673815199523233,
+    0.026382957003079355,
+    0.026052820001496002,
+    0.025557674991432577,
+    0.025913440971635282
+  ],
+  "repeats": 5,
+  "device": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "stages": [
+    {
+      "name": "initial_10_percent_headroom",
+      "reset_seconds": null,
+      "reset_result": null,
+      "memory": {
+        "groups": [
+          {
+            "model_id": 0,
+            "nworld": 3005,
+            "capacity": 3005,
+            "active_worlds": 2731,
+            "inactive_slots": 274,
+            "model_bytes": 28879,
+            "data_bytes": 71338708,
+            "virtual_committed_bytes": 0,
+            "virtual_reserved_bytes": 0,
+            "arena_requested_bytes": 0,
+            "arena_highwater_bytes": 0
+          },
+          {
+            "model_id": 1,
+            "nworld": 3005,
+            "capacity": 3005,
+            "active_worlds": 2731,
+            "inactive_slots": 274,
+            "model_bytes": 57452,
+            "data_bytes": 97434128,
+            "virtual_committed_bytes": 0,
+            "virtual_reserved_bytes": 0,
+            "arena_requested_bytes": 0,
+            "arena_highwater_bytes": 0
+          },
+          {
+            "model_id": 2,
+            "nworld": 3004,
+            "capacity": 3004,
+            "active_worlds": 2730,
+            "inactive_slots": 274,
+            "model_bytes": 14870,
+            "data_bytes": 53627416,
+            "virtual_committed_bytes": 0,
+            "virtual_reserved_bytes": 0,
+            "arena_requested_bytes": 0,
+            "arena_highwater_bytes": 0
+          }
+        ],
+        "mapping_bytes": 134360,
+        "layout_version": 0,
+        "active_worlds": 8192,
+        "physical_slots": 9014,
+        "inactive_slots": 822,
+        "total_bytes": 222635813
+      },
+      "active_environment_steps_per_second": 6839524.170600657,
+      "batch_step_ms": 1.197744140625,
+      "finite_state": true,
+      "overflow": false
+    },
+    {
+      "name": "96_balanced_switches",
+      "reset_seconds": 0.026052820001496002,
+      "reset_result": {
+        "graph_recaptured": false,
+        "reallocated_model_ids": [],
+        "layout_version": 0
+      },
+      "memory": {
+        "groups": [
+          {
+            "model_id": 0,
+            "nworld": 3005,
+            "capacity": 3005,
+            "active_worlds": 2731,
+            "inactive_slots": 274,
+            "model_bytes": 28879,
+            "data_bytes": 71338708,
+            "virtual_committed_bytes": 0,
+            "virtual_reserved_bytes": 0,
+            "arena_requested_bytes": 0,
+            "arena_highwater_bytes": 0
+          },
+          {
+            "model_id": 1,
+            "nworld": 3005,
+            "capacity": 3005,
+            "active_worlds": 2731,
+            "inactive_slots": 274,
+            "model_bytes": 57452,
+            "data_bytes": 97434128,
+            "virtual_committed_bytes": 0,
+            "virtual_reserved_bytes": 0,
+            "arena_requested_bytes": 0,
+            "arena_highwater_bytes": 0
+          },
+          {
+            "model_id": 2,
+            "nworld": 3004,
+            "capacity": 3004,
+            "active_worlds": 2730,
+            "inactive_slots": 274,
+            "model_bytes": 14870,
+            "data_bytes": 53627416,
+            "virtual_committed_bytes": 0,
+            "virtual_reserved_bytes": 0,
+            "arena_requested_bytes": 0,
+            "arena_highwater_bytes": 0
+          }
+        ],
+        "mapping_bytes": 134360,
+        "layout_version": 0,
+        "active_worlds": 8192,
+        "physical_slots": 9014,
+        "inactive_slots": 822,
+        "total_bytes": 222635813
+      },
+      "active_environment_steps_per_second": 6835618.4940172685,
+      "batch_step_ms": 1.1984284973144532,
+      "finite_state": true,
+      "overflow": false
+    },
+    {
+      "name": "all_humanoid_retain_highwater",
+      "reset_seconds": 0.1359902269905433,
+      "reset_result": {
+        "graph_recaptured": true,
+        "reallocated_model_ids": [
+          1
+        ],
+        "layout_version": 1
+      },
+      "memory": {
+        "groups": [
+          {
+            "model_id": 0,
+            "nworld": 3005,
+            "capacity": 3005,
+            "active_worlds": 0,
+            "inactive_slots": 3005,
+            "model_bytes": 28879,
+            "data_bytes": 71338708,
+            "virtual_committed_bytes": 0,
+            "virtual_reserved_bytes": 0,
+            "arena_requested_bytes": 0,
+            "arena_highwater_bytes": 0
+          },
+          {
+            "model_id": 1,
+            "nworld": 8192,
+            "capacity": 8192,
+            "active_worlds": 8192,
+            "inactive_slots": 0,
+            "model_bytes": 57452,
+            "data_bytes": 265617416,
+            "virtual_committed_bytes": 0,
+            "virtual_reserved_bytes": 0,
+            "arena_requested_bytes": 0,
+            "arena_highwater_bytes": 0
+          },
+          {
+            "model_id": 2,
+            "nworld": 3004,
+            "capacity": 3004,
+            "active_worlds": 0,
+            "inactive_slots": 3004,
+            "model_bytes": 14870,
+            "data_bytes": 53627416,
+            "virtual_committed_bytes": 0,
+            "virtual_reserved_bytes": 0,
+            "arena_requested_bytes": 0,
+            "arena_highwater_bytes": 0
+          }
+        ],
+        "mapping_bytes": 155108,
+        "layout_version": 1,
+        "active_worlds": 8192,
+        "physical_slots": 14201,
+        "inactive_slots": 6009,
+        "total_bytes": 390839849
+      },
+      "active_environment_steps_per_second": 5557770.580729982,
+      "batch_step_ms": 1.4739723205566406,
+      "finite_state": true,
+      "overflow": false
+    },
+    {
+      "name": "all_humanoid_compact",
+      "reset_seconds": 0.05177573501714505,
+      "reset_result": {
+        "graph_recaptured": true,
+        "reallocated_model_ids": [
+          1
+        ],
+        "layout_version": 2
+      },
+      "memory": {
+        "groups": [
+          {
+            "model_id": 1,
+            "nworld": 8192,
+            "capacity": 8192,
+            "active_worlds": 8192,
+            "inactive_slots": 0,
+            "model_bytes": 57452,
+            "data_bytes": 265617416,
+            "virtual_committed_bytes": 0,
+            "virtual_reserved_bytes": 0,
+            "arena_requested_bytes": 0,
+            "arena_highwater_bytes": 0
+          }
+        ],
+        "mapping_bytes": 131072,
+        "layout_version": 2,
+        "active_worlds": 8192,
+        "physical_slots": 8192,
+        "inactive_slots": 0,
+        "total_bytes": 265805940
+      },
+      "active_environment_steps_per_second": 11821457.735833686,
+      "batch_step_ms": 0.6929771423339843,
+      "finite_state": true,
+      "overflow": false
+    },
+    {
+      "name": "balanced_compact",
+      "reset_seconds": 0.14020511697162874,
+      "reset_result": {
+        "graph_recaptured": true,
+        "reallocated_model_ids": [
+          0,
+          1,
+          2
+        ],
+        "layout_version": 3
+      },
+      "memory": {
+        "groups": [
+          {
+            "model_id": 0,
+            "nworld": 2731,
+            "capacity": 2731,
+            "active_worlds": 2731,
+            "inactive_slots": 0,
+            "model_bytes": 28879,
+            "data_bytes": 64833948,
+            "virtual_committed_bytes": 0,
+            "virtual_reserved_bytes": 0,
+            "arena_requested_bytes": 0,
+            "arena_highwater_bytes": 0
+          },
+          {
+            "model_id": 1,
+            "nworld": 2731,
+            "capacity": 2731,
+            "active_worlds": 2731,
+            "inactive_slots": 0,
+            "model_bytes": 57452,
+            "data_bytes": 88549952,
+            "virtual_committed_bytes": 0,
+            "virtual_reserved_bytes": 0,
+            "arena_requested_bytes": 0,
+            "arena_highwater_bytes": 0
+          },
+          {
+            "model_id": 2,
+            "nworld": 2730,
+            "capacity": 2730,
+            "active_worlds": 2730,
+            "inactive_slots": 0,
+            "model_bytes": 14870,
+            "data_bytes": 48735968,
+            "virtual_committed_bytes": 0,
+            "virtual_reserved_bytes": 0,
+            "arena_requested_bytes": 0,
+            "arena_highwater_bytes": 0
+          }
+        ],
+        "mapping_bytes": 131072,
+        "layout_version": 3,
+        "active_worlds": 8192,
+        "physical_slots": 8192,
+        "inactive_slots": 0,
+        "total_bytes": 202352141
+      },
+      "active_environment_steps_per_second": 7033500.31104848,
+      "batch_step_ms": 1.164711685180664,
+      "finite_state": true,
+      "overflow": false
+    }
+  ],
+  "notes": "Reset times are host wall time including synchronization; physics uses CUDA events. Growth/compaction includes allocation and graph capture. Memory excludes retained external views, CUDA runtime, graph/JIT allocations, and allocator caches. Vacant slots execute physics."
+}

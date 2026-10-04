@@ -1,0 +1,1807 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="An illustrated guide to GPU-only robot resets, shared physics workspace, CUDA graphs, and dynamic memory in the Warp and MuJoCo Warp prototypes."
+    />
+    <title>GPU-only heterogeneous worlds — an illustrated guide</title>
+    <style>
+      :root {
+        --paper: #f7f7f2;
+        --card: #fff;
+        --ink: #172c37;
+        --muted: #526570;
+        --line: #dbe2df;
+        --teal: #147561;
+        --mint: #e5f4eb;
+        --blue: #335fac;
+        --blue-bg: #e9effb;
+        --amber: #9a5a0b;
+        --amber-bg: #fff0d7;
+        --red: #a93131;
+        --red-bg: #fff0ef;
+        --nav: 248px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 24px;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font:
+          16px/1.7 system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      a {
+        color: var(--teal);
+        text-underline-offset: 3px;
+      }
+      a:hover {
+        text-decoration-thickness: 2px;
+      }
+      button,
+      select {
+        font: inherit;
+      }
+      button,
+      select,
+      a {
+        touch-action: manipulation;
+      }
+      button,
+      select {
+        border: 1px solid #aabbb5;
+        border-radius: 8px;
+        background: white;
+        color: var(--ink);
+        padding: 9px 12px;
+      }
+      button {
+        cursor: pointer;
+        font-weight: 650;
+      }
+      button:hover {
+        background: var(--mint);
+      }
+      button.primary {
+        background: var(--teal);
+        border-color: var(--teal);
+        color: #fff;
+      }
+      button.primary:hover {
+        background: #105f50;
+      }
+      :focus-visible {
+        outline: 3px solid #da8e18;
+        outline-offset: 3px;
+      }
+      code,
+      pre,
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      }
+      code {
+        font-size: 0.87em;
+        overflow-wrap: anywhere;
+        background: #edf1ee;
+        padding: 2px 5px;
+        border-radius: 4px;
+      }
+      pre {
+        padding: 20px 22px;
+        background: #142b35;
+        color: #e1f2e9;
+        border-radius: 12px;
+        overflow: auto;
+        font-size: 0.84rem;
+        line-height: 1.8;
+      }
+      pre code {
+        background: transparent;
+        padding: 0;
+        color: inherit;
+        font-size: inherit;
+        overflow-wrap: normal;
+      }
+      h1,
+      h2,
+      h3 {
+        line-height: 1.18;
+        letter-spacing: -0.035em;
+      }
+      h1 {
+        font-size: clamp(2.4rem, 4.9vw, 4.5rem);
+        max-width: 850px;
+        margin: 16px 0 24px;
+        font-weight: 750;
+      }
+      h2 {
+        font-size: clamp(1.7rem, 2.6vw, 2.3rem);
+        margin: 12px 0 22px;
+      }
+      h3 {
+        font-size: 1.12rem;
+        letter-spacing: -0.015em;
+        margin: 0 0 10px;
+      }
+      p {
+        margin: 0 0 18px;
+      }
+      ul,
+      ol {
+        padding-left: 24px;
+      }
+      li {
+        margin: 9px 0;
+      }
+      strong {
+        font-weight: 700;
+      }
+      .muted,
+      .caption {
+        color: var(--muted);
+      }
+      .caption {
+        font-size: 0.84rem;
+        margin: 12px 0 0;
+      }
+      .eyebrow {
+        font-size: 0.72rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-weight: 750;
+        color: var(--teal);
+      }
+      .skip {
+        position: absolute;
+        left: 20px;
+        top: -80px;
+        z-index: 20;
+        background: #fff;
+        padding: 10px;
+      }
+      .skip:focus {
+        top: 10px;
+      }
+      aside {
+        width: var(--nav);
+        position: fixed;
+        inset: 0 auto 0 0;
+        padding: 34px 24px;
+        border-right: 1px solid var(--line);
+        background: #f0f2ed;
+        overflow: auto;
+      }
+      .brand {
+        font-size: 0.92rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+      }
+      .brand-sub {
+        font-size: 0.77rem;
+        color: var(--muted);
+        margin: 7px 0 30px;
+      }
+      nav {
+        display: grid;
+        gap: 4px;
+      }
+      nav a {
+        display: flex;
+        gap: 11px;
+        text-decoration: none;
+        color: var(--muted);
+        font-size: 0.83rem;
+        padding: 8px 9px;
+        border-radius: 6px;
+      }
+      nav a:hover,
+      nav a[aria-current="location"] {
+        background: #dfece4;
+        color: #155846;
+      }
+      nav .n {
+        font-size: 0.71rem;
+        opacity: 0.75;
+        padding-top: 2px;
+      }
+      .aside-bottom {
+        margin-top: 34px;
+        border-top: 1px solid var(--line);
+        padding-top: 20px;
+        font-size: 0.75rem;
+        color: var(--muted);
+      }
+      main {
+        margin-left: var(--nav);
+        max-width: 1300px;
+        padding: 54px 7% 50px;
+      }
+      .hero {
+        padding-bottom: 44px;
+        border-bottom: 1px solid var(--line);
+      }
+      .lead {
+        font-size: 1.18rem;
+        max-width: 760px;
+        line-height: 1.65;
+      }
+      .badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 9px;
+        margin: 24px 0;
+      }
+      .badge {
+        border: 1px solid #cedad1;
+        border-radius: 100px;
+        padding: 5px 12px;
+        font-size: 0.75rem;
+        color: var(--teal);
+        background: #f0f7f0;
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-top: 30px;
+      }
+      .stat {
+        padding: 18px 20px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+      }
+      .stat b {
+        display: block;
+        font-size: 1.8rem;
+        letter-spacing: -0.04em;
+      }
+      .stat span {
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      section {
+        padding-top: 62px;
+        scroll-margin-top: 20px;
+      }
+      .section-number {
+        display: inline-block;
+        color: var(--teal);
+        font-size: 0.75rem;
+        font-weight: 750;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+      .grid3 {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        padding: 24px;
+      }
+      .card p:last-child {
+        margin-bottom: 0;
+      }
+      .note {
+        padding: 19px 23px;
+        border-left: 4px solid var(--teal);
+        border-radius: 0 10px 10px 0;
+        background: var(--mint);
+        margin: 24px 0;
+      }
+      .note p:last-child {
+        margin-bottom: 0;
+      }
+      .note.amber {
+        border-color: var(--amber);
+        background: var(--amber-bg);
+      }
+      .small {
+        font-size: 0.89rem;
+      }
+      .table-wrap {
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        margin: 22px 0;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 0.88rem;
+        text-align: left;
+      }
+      th,
+      td {
+        padding: 14px 17px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      thead {
+        background: #edf2ee;
+      }
+      th {
+        font-weight: 700;
+      }
+      tbody tr:last-child td,
+      tbody tr:last-child th {
+        border-bottom: 0;
+      }
+      caption {
+        text-align: left;
+        padding: 14px 17px;
+        font-size: 0.82rem;
+        color: var(--muted);
+        caption-side: bottom;
+      }
+      .nowrap {
+        white-space: nowrap;
+      }
+      .diagram {
+        padding: 26px;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        margin: 24px 0;
+      }
+      .diagram figcaption {
+        font-size: 0.84rem;
+        color: var(--muted);
+        margin-top: 16px;
+      }
+      .diagram svg {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+      .pipeline {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        counter-reset: phase;
+      }
+      .phase {
+        padding: 18px;
+        background: #f0f5f1;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        counter-increment: phase;
+      }
+      .phase:before {
+        content: counter(phase, decimal-leading-zero);
+        font:
+          700 0.8rem ui-monospace,
+          monospace;
+        color: var(--teal);
+        display: block;
+        margin-bottom: 7px;
+      }
+      .phase strong {
+        font-size: 0.89rem;
+        display: block;
+      }
+      .phase span {
+        font-size: 0.8rem;
+        color: var(--muted);
+        display: block;
+        margin-top: 5px;
+      }
+      .legend {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        font-size: 0.77rem;
+        color: var(--muted);
+        margin: 16px 0;
+      }
+      .legend span {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .swatch {
+        width: 10px;
+        height: 10px;
+        display: inline-block;
+        border-radius: 3px;
+      }
+      .human {
+        background: var(--blue-bg);
+        color: var(--blue);
+      }
+      .arm {
+        background: var(--mint);
+        color: var(--teal);
+      }
+      .dual {
+        background: var(--amber-bg);
+        color: var(--amber);
+      }
+      .pill {
+        display: inline-block;
+        padding: 3px 9px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 700;
+      }
+      .swatch.human {
+        background: var(--blue);
+      }
+      .swatch.arm {
+        background: var(--teal);
+      }
+      .swatch.dual {
+        background: var(--amber);
+      }
+      .demo {
+        border: 1px solid #b9cfc2;
+        border-radius: 14px;
+        padding: 26px;
+        background: #fff;
+        margin-top: 26px;
+      }
+      .demo-toolbar {
+        display: flex;
+        gap: 9px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin: 20px 0;
+      }
+      .demo-toolbar button {
+        font-size: 0.81rem;
+      }
+      .demo-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        gap: 20px;
+      }
+      .fixed-tags {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .fixed-tags span {
+        font-size: 0.71rem;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 5px 8px;
+        white-space: nowrap;
+      }
+      .demo-table select {
+        max-width: 100%;
+        width: 165px;
+        font-size: 0.76rem;
+        padding: 6px;
+      }
+      .demo-table th,
+      .demo-table td {
+        padding: 10px 12px;
+        vertical-align: middle;
+      }
+      .state-cells {
+        display: flex;
+        gap: 3px;
+        margin: 7px 0;
+      }
+      .state-cell {
+        width: 11px;
+        height: 13px;
+        border-radius: 2px;
+        background: #e9eeeb;
+      }
+      .state-cell.active.human {
+        background: var(--blue);
+      }
+      .state-cell.active.arm {
+        background: var(--teal);
+      }
+      .state-cell.active.dual {
+        background: var(--amber);
+      }
+      .workspace-groups {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .work-group {
+        background: #f7f9f7;
+        border-radius: 9px;
+        padding: 13px;
+        font-size: 0.78rem;
+      }
+      .work-group h4 {
+        font-size: 0.81rem;
+        margin: 0 0 9px;
+      }
+      .chunk {
+        display: flex;
+        gap: 5px;
+        margin: 6px 0;
+      }
+      .slot {
+        border-radius: 5px;
+        padding: 7px 5px;
+        flex: 1;
+        text-align: center;
+        font-size: 0.72rem;
+        font-weight: 650;
+        border: 1px solid transparent;
+      }
+      .slot.vacant {
+        border: 1px dashed #b5c4bb;
+        color: #687b70;
+        background: #fff;
+      }
+      .status {
+        padding: 13px 15px;
+        border-radius: 8px;
+        background: #edf5ef;
+        font-size: 0.85rem;
+        margin: 18px 0;
+      }
+      .status.error {
+        background: var(--red-bg);
+        color: var(--red);
+      }
+      .chunk-summary {
+        margin-top: 12px;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .bench-controls {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin: 20px 0;
+      }
+      .bench-controls label {
+        font-size: 0.85rem;
+        font-weight: 650;
+      }
+      .bench-controls select {
+        font-size: 0.85rem;
+      }
+      .benchmark-layout {
+        display: grid;
+        grid-template-columns: 1.15fr 1fr;
+        gap: 26px;
+      }
+      .bar-row {
+        margin: 18px 0 24px;
+      }
+      .bar-top {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.82rem;
+        margin-bottom: 8px;
+        gap: 8px;
+      }
+      .track {
+        height: 26px;
+        border-radius: 5px;
+        background: #eef2ee;
+        overflow: hidden;
+        display: flex;
+      }
+      .segment {
+        height: 100%;
+      }
+      .data-segment {
+        background: #407b7c;
+      }
+      .scratch-segment {
+        background: #c8ad7e;
+      }
+      .speed-bar {
+        background: var(--teal);
+        height: 100%;
+        border-radius: 5px;
+        transition: width 0.2s;
+      }
+      .memory-detail {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin-top: 18px;
+      }
+      .memory-detail div {
+        padding: 12px 9px;
+        background: #f1f5f1;
+        border-radius: 8px;
+        font-size: 0.73rem;
+      }
+      .memory-detail b {
+        display: block;
+        font-size: 1rem;
+        margin-bottom: 4px;
+      }
+      .source-list li {
+        font-size: 0.87rem;
+        margin: 12px 0;
+      }
+      .footer {
+        border-top: 1px solid var(--line);
+        margin-top: 55px;
+        padding-top: 22px;
+        font-size: 0.79rem;
+        color: var(--muted);
+      }
+      .print-button {
+        font-size: 0.77rem;
+        padding: 7px 11px;
+        margin-top: 14px;
+      }
+      .noscript {
+        padding: 15px;
+        background: var(--amber-bg);
+        border: 1px solid #cba75d;
+        border-radius: 8px;
+      }
+      .js-only {
+        display: none;
+      }
+      .has-js .js-only {
+        display: block;
+      }
+      .has-js .no-js-only {
+        display: none;
+      }
+      @media (min-width: 1600px) {
+        main {
+          padding-left: 90px;
+          padding-right: 90px;
+        }
+      }
+      @media (max-width: 1100px) {
+        :root {
+          --nav: 210px;
+        }
+        main {
+          padding: 40px 5%;
+        }
+        .grid3 {
+          grid-template-columns: 1fr;
+        }
+        .demo {
+          padding: 18px;
+        }
+        .benchmark-layout {
+          grid-template-columns: 1fr;
+        }
+        .demo-top {
+          display: block;
+        }
+        .fixed-tags {
+          justify-content: flex-start;
+          margin-top: 12px;
+        }
+      }
+      @media (max-width: 800px) {
+        aside {
+          position: static;
+          width: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+          padding: 20px 22px;
+        }
+        .brand-sub {
+          margin-bottom: 16px;
+        }
+        nav {
+          display: flex;
+          overflow: auto;
+          gap: 8px;
+        }
+        nav a {
+          white-space: nowrap;
+          padding: 6px;
+        }
+        .aside-bottom {
+          display: none;
+        }
+        main {
+          margin: 0;
+          padding: 34px 22px;
+        }
+        .stats {
+          gap: 9px;
+        }
+        .stat {
+          padding: 13px;
+        }
+        .stat b {
+          font-size: 1.4rem;
+        }
+        .grid2 {
+          grid-template-columns: 1fr;
+        }
+        .pipeline {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .diagram {
+          padding: 17px;
+        }
+        .workspace-groups {
+          grid-template-columns: 1fr;
+        }
+        .memory-detail {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        section {
+          padding-top: 46px;
+        }
+        .hero {
+          padding-bottom: 32px;
+        }
+      }
+      @media (max-width: 420px) {
+        main {
+          padding: 28px 16px;
+        }
+        .stats {
+          grid-template-columns: 1fr;
+        }
+        .stat {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        .pipeline {
+          grid-template-columns: 1fr;
+        }
+        .card {
+          padding: 19px;
+        }
+        .demo {
+          padding: 14px;
+        }
+        th,
+        td {
+          padding: 10px;
+        }
+        h1 {
+          font-size: 2.55rem;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+        * {
+          transition: none !important;
+        }
+      }
+      @media print {
+        @page {
+          size: A4;
+          margin: 17mm;
+        }
+        body {
+          background: #fff;
+          font-size: 10pt;
+          color: #13252d;
+          print-color-adjust: exact;
+          -webkit-print-color-adjust: exact;
+        }
+        aside,
+        .skip,
+        .demo-toolbar,
+        .bench-controls,
+        .print-button,
+        .demo-table select,
+        .no-print {
+          display: none !important;
+        }
+        main {
+          margin: 0;
+          padding: 0;
+          max-width: none;
+        }
+        h1 {
+          font-size: 32pt;
+        }
+        h2 {
+          font-size: 20pt;
+        }
+        section {
+          padding-top: 26px;
+        }
+        h2,
+        h3 {
+          break-after: avoid;
+        }
+        p,
+        li {
+          orphans: 3;
+          widows: 3;
+        }
+        .card,
+        .phase,
+        .stat,
+        .bar-row,
+        tr {
+          break-inside: avoid;
+        }
+        .table-wrap {
+          overflow: visible;
+        }
+        .diagram,
+        .demo,
+        .card {
+          box-shadow: none;
+        }
+        .hero {
+          padding-bottom: 22px;
+        }
+        .benchmark-layout {
+          grid-template-columns: 1fr 1fr;
+        }
+        .caption,
+        .small {
+          font-size: 9pt;
+        }
+        .lead {
+          font-size: 12pt;
+        }
+        pre {
+          white-space: pre-wrap;
+          overflow-wrap: anywhere;
+          font-size: 8pt;
+        }
+        .source-list a {
+          overflow-wrap: anywhere;
+        }
+        a {
+          color: inherit;
+        }
+        .demo-table th:last-child,
+        .demo-table td:last-child {
+          display: none;
+        }
+        .grid3 {
+          grid-template-columns: repeat(3, 1fr);
+        }
+        .footer {
+          margin-top: 25px;
+        }
+        .workspace-groups {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to report</a>
+    <aside aria-label="Report navigation">
+      <div class="brand">WARP × MJWARP</div>
+      <p class="brand-sub">A guide to the working prototype<br />Updated 3 October 2026</p>
+      <nav>
+        <a href="#foundations"><span class="n">01</span> Start with a world</a>
+        <a href="#approaches"><span class="n">02</span> Three storage approaches</a>
+        <a href="#pooled"><span class="n">03</span> Shared physics workspace</a>
+        <a href="#reset"><span class="n">04</span> Follow a GPU reset</a>
+        <a href="#graphs"><span class="n">05</span> Graphs and scratch</a>
+        <a href="#virtual"><span class="n">06</span> Virtual vs physical memory</a>
+        <a href="#madrona"><span class="n">07</span> Madrona and dynamic tables</a>
+        <a href="#measurements"><span class="n">08</span> Memory and throughput</a>
+        <a href="#boundaries"><span class="n">09</span> What works today</a>
+        <a href="#sources"><span class="n">10</span> Code and further reading</a>
+      </nav>
+      <div class="aside-bottom">
+        Self-contained report.<br />Diagrams and interactions work offline. Source links need the repository or internet.<br /><button
+          class="print-button"
+          id="print-report"
+          type="button"
+        >
+          Print / save PDF
+        </button>
+      </div>
+    </aside>
+    <main id="main">
+      <header class="hero">
+        <div class="eyebrow">An illustrated engineering guide · Experimental implementation</div>
+        <h1>How GPU-only heterogeneous worlds work.</h1>
+        <p class="lead">
+          Each world keeps its own persistent state. Thousands of worlds share a larger physics workspace. GPU kernels decide
+          which robot each world contains, reset its episode, and schedule the right physics.
+        </p>
+        <div class="badges">
+          <span class="badge">Robot changes during reset</span><span class="badge">One unchanged CUDA graph</span
+          ><span class="badge">Memory prepared at startup</span>
+        </div>
+        <div class="stats">
+          <div class="stat"><b>8,192</b><span>worlds tested through population changes</span></div>
+          <div class="stat"><b>249.2 MB</b><span>owned memory at 2,731 working rows</span></div>
+          <div class="stat"><b>6.42 M</b><span>mixed environment steps per second</span></div>
+        </div>
+        <p class="caption">
+          Measured on an RTX PRO 6000 Blackwell. Memory includes preallocated capture scratch. These figures describe the tested
+          physics workload, not a complete learning system.
+        </p>
+      </header>
+
+      <section id="foundations">
+        <span class="section-number">01 / Foundations</span>
+        <h2>A world is more than its robot.</h2>
+        <p>
+          Imagine a humanoid standing on a floor. Its <strong>model</strong> is the blueprint: bodies, joints, masses, collision
+          shapes, and actuators. Its <strong>state</strong> is what is happening now: joint positions, velocities, actuator
+          state, and simulation time.
+        </p>
+        <p>
+          Advancing the simulation also needs working memory. Collision detection creates contact information. A constraint
+          solver calculates forces that enforce joints and prevent objects passing through one another. These calculations use
+          arrays much larger than the small set of values that describes the current episode.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Memory category</th>
+                <th scope="col">Examples</th>
+                <th scope="col">Lifetime in this design</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Model</th>
+                <td>Geometry, masses, joints, actuator definitions</td>
+                <td>One prepared description per catalog model, shared by its worlds</td>
+              </tr>
+              <tr>
+                <th scope="row">Persistent state</th>
+                <td><code>qpos</code> positions, <code>qvel</code> velocities, controls, time, history</td>
+                <td>One permanent row per logical world</td>
+              </tr>
+              <tr>
+                <th scope="row">Physics workspace</th>
+                <td>Contacts, constraints, solver matrices</td>
+                <td>One working batch reused across worlds and models</td>
+              </tr>
+              <tr>
+                <th scope="row">Temporary scratch</th>
+                <td>Intermediate calculations and scan workspace</td>
+                <td>A prepared buffer reused after each phase finishes</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          A <strong>GPU kernel</strong> is a function executed by many GPU threads. Warp compiles kernels written using Python
+          syntax. MuJoCo Warp supplies kernels for physics. A <strong>batch</strong> lets these kernels process many independent
+          environments together.
+        </p>
+        <p>
+          In a homogeneous batch, every world uses the same model. The rows of its arrays have the same width and meaning. In a
+          heterogeneous population, a humanoid and an arm need different numbers of joints, different collision work, and
+          different action layouts.
+        </p>
+      </section>
+
+      <section id="approaches">
+        <span class="section-number">02 / The storage problem</span>
+        <h2>Three ways to fit different robots.</h2>
+        <div class="grid3">
+          <article class="card">
+            <h3>Sleep a combined model</h3>
+            <p class="small">
+              Put the possible robots into a common model and disable unused trees in each world. Sleeping avoids work, but
+              allocations still represent the larger combined model.
+            </p>
+            <p class="small muted">Useful for inactive bodies; inactive state still has a memory cost.</p>
+          </article>
+          <article class="card">
+            <h3>Keep separate model batches</h3>
+            <p class="small">
+              Give humanoids one compact batch, arms another, and dual arms another. Each batch runs ordinary specialized
+              physics.
+            </p>
+            <p class="small muted">Fast for known capacities. A batch with 2,731 humanoid slots cannot hold 8,192 humanoids.</p>
+          </article>
+          <article class="card">
+            <h3>Pool the working batch</h3>
+            <p class="small">
+              Keep persistent state for every world, then process model-specific chunks through shared physics storage.
+            </p>
+            <p class="small muted">
+              Any world can choose any catalog model, including the entire population choosing one model.
+            </p>
+          </article>
+        </div>
+        <p style="margin-top: 22px">
+          The repository contains both <code>HeterogeneousWorlds</code>, with fixed model capacities and GPU resets, and
+          <code>PooledHeterogeneousWorlds</code>, which handles arbitrary population mixtures within the startup catalog. The
+          pooled runner is the focus of this report.
+        </p>
+      </section>
+
+      <section id="pooled">
+        <span class="section-number">03 / The pooled design</span>
+        <h2>A permanent world ID, a temporary working row.</h2>
+        <p>
+          World 42 keeps its identity across episodes. It can contain a humanoid now and an arm after its next reset. A GPU
+          array, <code>world_model_ids</code>, records its current model. Arrays such as <code>state.qpos[42]</code> and
+          <code>state.qvel[42]</code> hold its persistent state.
+        </p>
+        <p>
+          While its physics runs, world 42 temporarily occupies a row in the shared workspace. Once the result is saved, that
+          row can serve a different world. Policy and episode code address the stable logical world ID.
+        </p>
+        <figure class="diagram">
+          <svg viewBox="0 0 840 275" role="img" aria-labelledby="layout-title layout-desc">
+            <title id="layout-title">Persistent worlds share a physics workspace</title>
+            <desc id="layout-desc">
+              Permanent state rows feed a GPU worklist. Selected rows are gathered into a shared batch, simulated, and scattered
+              back. Catalog models choose the physics for each chunk.
+            </desc>
+            <defs>
+              <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <path d="M0 0 L8 4 L0 8Z" fill="#526570" />
+              </marker>
+            </defs>
+            <rect x="8" y="25" width="232" height="182" rx="12" fill="#e5f4eb" stroke="#aecdbb" />
+            <text x="25" y="53" font-size="16" font-weight="700" fill="#172c37">Persistent world state</text>
+            <text x="25" y="79" font-size="12" fill="#526570">Stable rows and addresses</text>
+            <g font-size="12" fill="#172c37">
+              <text x="25" y="111">World 0 · positions, velocities, …</text>
+              <text x="25" y="140">World 1 · positions, velocities, …</text>
+              <text x="25" y="168">…</text>
+              <text x="25" y="191">World 8191 · its own episode</text>
+            </g>
+            <rect x="293" y="61" width="194" height="109" rx="12" fill="#f0f3ef" stroke="#c4d0c8" />
+            <text x="313" y="89" font-size="16" font-weight="700" fill="#172c37">GPU worklist</text>
+            <text x="313" y="117" font-size="12" fill="#526570">Group IDs by model</text>
+            <text x="313" y="143" font-size="12" fill="#526570">Select the next chunk</text>
+            <rect x="546" y="25" width="282" height="182" rx="12" fill="#e9effb" stroke="#becce6" />
+            <text x="565" y="53" font-size="16" font-weight="700" fill="#172c37">Shared physics workspace</text>
+            <text x="565" y="79" font-size="12" fill="#526570">Fixed working-batch capacity</text>
+            <rect x="565" y="96" width="244" height="35" rx="6" fill="#fff" />
+            <text x="578" y="118" font-size="12" fill="#335fac">Working row 0 ← selected world</text>
+            <rect x="565" y="140" width="244" height="35" rx="6" fill="#fff" />
+            <text x="578" y="162" font-size="12" fill="#335fac">Working row 1 ← selected world</text>
+            <path d="M240 117 H286" fill="none" stroke="#526570" stroke-width="2" marker-end="url(#arrow)" />
+            <path d="M487 117 H539" fill="none" stroke="#526570" stroke-width="2" marker-end="url(#arrow)" />
+            <path d="M687 210 V244 H121 V213" fill="none" stroke="#526570" stroke-width="2" marker-end="url(#arrow)" />
+            <rect x="285" y="231" width="268" height="26" rx="4" fill="#fff" />
+            <text x="298" y="249" font-size="12" fill="#526570">Scatter updated state back to its world</text>
+          </svg>
+          <figcaption>
+            Only a chunk uses the physics workspace at one time. The model catalog and capture scratch are additional prepared
+            storage.
+          </figcaption>
+        </figure>
+        <div class="grid2">
+          <article class="card">
+            <h3>Small state, padded for stable rows</h3>
+            <p class="small">
+              Each persistent field uses the largest width needed by any catalog model. A smaller robot uses only the valid
+              prefix. This spends some padding to preserve a simple world-indexed interface. Persistent state was 7.63 MB for
+              all 8,192 tested worlds.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Large workspace, reused over time</h3>
+            <p class="small">
+              Each chunk gathers state, runs existing mjwarp physics, and scatters results. Model-specific Data layouts overlap
+              in one arena. The physical cost follows the largest working layout, rather than a complete population allocation
+              for every model.
+            </p>
+          </article>
+        </div>
+        <p style="margin-top: 22px">
+          The GPU counts worlds by model, calculates the beginning of each model’s range, and places world IDs into a grouped
+          list. Relative order within a model is unspecified. Captured worklists rebuild only when assignments change.
+        </p>
+        <p>
+          Independent worlds all advance by the same simulation timestep, even though their chunks execute successively. The
+          last partially filled chunk currently simulates unused working rows and discards their results.
+        </p>
+      </section>
+
+      <section id="reset">
+        <span class="section-number">04 / Reset and reassignment</span>
+        <h2>Follow a world as it changes robots.</h2>
+        <p>
+          A GPU episode kernel writes a destination model ID into <code>reset_model_ids[world]</code>. A value of
+          <code>-1</code> means no reset. A request for the current model starts a fresh episode of the same robot.
+        </p>
+        <ol>
+          <li><strong>Decide:</strong> episode logic reads the preceding state and produces reset requests.</li>
+          <li><strong>Validate:</strong> GPU kernels check that every requested model exists in the catalog.</li>
+          <li>
+            <strong>Assign:</strong> valid requests update model IDs and worklists. Each selected world’s epoch increases, and
+            its request becomes <code>-1</code>.
+          </li>
+          <li>
+            <strong>Initialize:</strong> selected worlds receive their new model’s reset defaults. Their old episode state is
+            discarded.
+          </li>
+          <li><strong>Act:</strong> GPU policy kernels write controls using the current model’s action layout.</li>
+          <li><strong>Simulate:</strong> grouped chunks advance physics and save updated state and requested observations.</li>
+        </ol>
+        <p>
+          An <strong>epoch</strong> is a reset counter. It distinguishes different episodes with the same world ID. Invalid
+          requests reject the entire reset transaction: assignments and epochs stay unchanged, requests remain pending, and
+          physics can continue the existing episodes.
+        </p>
+        <div class="demo" id="reset-demo">
+          <div class="demo-top">
+            <div>
+              <h3>Try six logical worlds</h3>
+              <p class="small muted">Queue requests, then apply one illustrated reset transaction.</p>
+            </div>
+            <div class="fixed-tags"><span>Graph: 1</span><span>Working rows: 2</span><span>State addresses: fixed</span></div>
+          </div>
+          <p class="caption">
+            This browser illustration executes no physics. Its controls stand in for a GPU episode kernel; the real reset and
+            scheduling decisions run on the GPU. Colored state widths are illustrative.
+          </p>
+          <noscript
+            ><p class="noscript">
+              Enable JavaScript to change the illustrated population. The explanation and benchmark tables remain available
+              without it.
+            </p></noscript
+          >
+          <div class="js-only">
+            <div class="demo-toolbar">
+              <button type="button" id="queue-humanoid">Queue all humanoids</button
+              ><button type="button" id="queue-arm">Queue all single arms</button
+              ><button type="button" id="queue-mixed">Queue mixed</button
+              ><button type="button" id="apply-reset" class="primary">Apply illustrated reset</button
+              ><button type="button" id="restart-demo">Restart example</button>
+            </div>
+            <div class="table-wrap">
+              <table class="demo-table">
+                <thead>
+                  <tr>
+                    <th scope="col">World / stable row</th>
+                    <th scope="col">Current model / state prefix</th>
+                    <th scope="col">Epoch</th>
+                    <th scope="col">Pending request</th>
+                  </tr>
+                </thead>
+                <tbody id="world-rows"></tbody>
+              </table>
+            </div>
+            <p id="reset-status" class="status" role="status" aria-live="polite">
+              Initial population. All requests are −1; no reset is pending.
+            </p>
+            <h3>Current grouped worklist → chunks of two</h3>
+            <div id="workspace-groups" class="workspace-groups"></div>
+            <p id="chunk-summary" class="chunk-summary"></p>
+          </div>
+          <p class="no-js-only small">
+            Example: humanoids [0, 3, 5] use two chunks; arms [1, 4] use one; dual arm [2] uses one. Changing all six to
+            humanoids needs three chunks, using the same two-row workspace.
+          </p>
+        </div>
+        <div class="note">
+          <p>
+            <strong>Any population mix fits the pooled design.</strong> All 8,192 worlds can become humanoids, then single arms,
+            then mixed again. There is no separate humanoid-slot limit. The world count, model catalog, and working capacities
+            are prepared at startup.
+          </p>
+        </div>
+      </section>
+
+      <section id="graphs">
+        <span class="section-number">05 / CUDA execution</span>
+        <h2>Fixed graph structure, changing GPU decisions.</h2>
+        <p>
+          A <strong>CUDA graph</strong> records GPU operations and their dependencies so the CPU can submit the sequence
+          efficiently. During capture, Python builds that sequence. During replay, device values determine whether conditional
+          branches run and how many times conditional loops repeat.
+          <a href="https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cuda-graphs.html"
+            >NVIDIA documents these graph mechanisms.</a
+          >
+        </p>
+        <div class="diagram">
+          <div class="pipeline">
+            <div class="phase"><strong>Episode logic</strong><span>Read prior state; produce reset requests.</span></div>
+            <div class="phase">
+              <strong>Plan and reset</strong><span>Validate, regroup, and initialize selected worlds.</span>
+            </div>
+            <div class="phase"><strong>Policy</strong><span>Write controls for the current assignments.</span></div>
+            <div class="phase"><strong>Gather chunk</strong><span>Copy persistent state into working rows.</span></div>
+            <div class="phase"><strong>Advance physics</strong><span>Use that model’s specialized kernels.</span></div>
+            <div class="phase">
+              <strong>Scatter and repeat</strong><span>Save results; loop over remaining chunks and models.</span>
+            </div>
+          </div>
+          <p class="caption">
+            The CPU prepares the system and submits graph launches. Reset decisions, assignments, and chunk-loop decisions
+            execute on device. No reset readback, host allocation, or recapture is needed during replay.
+          </p>
+        </div>
+        <h3>Why a new scratch API was necessary</h3>
+        <p>
+          Existing physics functions create temporary arrays, including workspace used by native scan routines. CUDA conditional
+          body graphs restrict node types and exclude allocation/free nodes. To capture a full physics step inside a conditional
+          loop, we supply its temporary storage in advance.
+          <a
+            href="https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cuda-graphs.html#conditional-node-body-graph-requirements"
+            >Conditional-body requirements</a
+          >
+        </p>
+        <p>
+          <code>wp.ScopedCaptureScratch</code> directs Python and participating native allocations into slices of a prepared
+          buffer while the graph is constructed. The recorded kernels use those fixed addresses at replay.
+          <code>rewind()</code> allows later captured phases to reuse the same addresses; it is a construction-time operation,
+          not a runtime GPU allocation.
+        </p>
+        <div class="grid2">
+          <article class="card">
+            <h3>Reuse requires ordering</h3>
+            <p class="small">
+              Model branches sharing workspace execute sequentially. Callback temporaries must finish before physics reuses
+              their scratch. Concurrent graph executions cannot safely share the same working and scratch storage.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Reuse requires initialization</h3>
+            <p class="small">
+              Another model can overwrite every byte in an aliased region. Required state is gathered or seeded; other fields
+              are recomputed. Dense constraint padding is cleared before each chunk after tests exposed solver failures from
+              stale padding.
+            </p>
+          </article>
+        </div>
+        <p style="margin-top: 22px">
+          Persistent integration state includes more than positions and velocities: actuator history, delayed sensor state,
+          warm-start information, applied forces, mocap inputs, equality activation, and user data also matter. Correctness
+          depends on preserving each field the next step needs.
+        </p>
+      </section>
+
+      <section id="virtual">
+        <span class="section-number">06 / Memory fundamentals</span>
+        <h2>An address reservation is not physical memory.</h2>
+        <p>
+          A pointer is an address used to access memory. CUDA virtual memory management separates reserving an address range
+          from providing physical GPU memory behind it. Physical backing can be mapped into a reserved range without moving
+          existing data.
+          <a href="https://developer.nvidia.com/blog/introducing-low-level-gpu-virtual-memory-management/"
+            >NVIDIA’s VMM introduction</a
+          >
+        </p>
+        <figure class="diagram">
+          <svg viewBox="0 0 840 155" role="img" aria-labelledby="vm-title vm-desc">
+            <title id="vm-title">Reservation and physical commitment</title>
+            <desc id="vm-desc">
+              A large virtual address range has a physically backed prefix. The remaining addresses are reserved but cannot yet
+              be accessed. Diagram is not to scale.
+            </desc>
+            <rect x="10" y="43" width="815" height="52" rx="7" fill="#eef1ef" stroke="#a9bab0" stroke-dasharray="6 4" />
+            <rect x="10" y="43" width="282" height="52" rx="7" fill="#147561" />
+            <text x="28" y="75" font-size="15" fill="#fff">Physically backed prefix</text>
+            <text x="319" y="75" font-size="15" fill="#526570">Reserved addresses · no physical backing yet</text>
+            <text x="10" y="24" font-size="13" fill="#172c37">Stable base address</text>
+            <text x="10" y="122" font-size="12" fill="#526570">Only backed addresses are safe to access.</text>
+            <text x="568" y="122" font-size="12" fill="#526570">Illustration is not to scale.</text>
+          </svg>
+          <figcaption>
+            The 2,731-row pooled run reserves 4 GiB of virtual address space for its shared Data arena, with about 90.18 MB
+            physically committed there. Persistent state and scratch are separate allocations.
+          </figcaption>
+        </figure>
+        <p>
+          The new Warp primitive <code>wp.VirtualMemory</code> reserves addresses, commits physical backing, and exposes typed
+          array views with stable pointers. In this prototype, physical commitment uses a host API and synchronizes before
+          growth completes.
+        </p>
+        <div class="note">
+          <p>
+            <strong>The pooled reset path commits its physical memory at startup.</strong> Runtime robot changes alter
+            assignments and reuse existing storage. They do not obtain new pages or call a host mapping service.
+          </p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Meaning of “dynamic”</th>
+                <th scope="col">Current implementation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Change what occupies prepared memory</th>
+                <td>GPU-only world reassignment, resets, worklists, and bounded entity-table mutations</td>
+              </tr>
+              <tr>
+                <th scope="row">Add more physical backing</th>
+                <td>Supported by the standalone VMM primitive through a host boundary; not used during pooled replay</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          The pooled implementation currently uses VMM for its arena, but a sufficiently large ordinary allocation could support
+          the same algorithm. Grouping and sharing storage account for the main savings. VMM is valuable when contiguous storage
+          needs stable-address growth; it does not automatically make physics faster.
+        </p>
+      </section>
+
+      <section id="madrona">
+        <span class="section-number">07 / The Madrona connection</span>
+        <h2>Dynamic tables are a separate foundation.</h2>
+        <p>
+          An <strong>entity-component system</strong> (ECS) stores objects through component tables. Position, velocity, and
+          mass can be separate contiguous columns. Grouping related entities helps GPU access patterns. Madrona uses virtual
+          memory to grow contiguous component storage while preserving addresses used for tensor export.
+          <a href="https://madrona-engine.github.io/shacklett_siggraph23.pdf">Madrona paper, section 5</a>
+        </p>
+        <p>
+          In the checked-out Madrona implementation, device code sends growth requests to a host allocator thread, which
+          performs the CUDA mapping and signals completion. Our strict GPU-only reset path uses precommitted storage and does
+          not reproduce that host service. See <a href="../../../madrona/src/mw/device/memory.cpp">device requests</a> and
+          <a href="../../../madrona/src/mw/cuda_exec.cpp">the host mapping implementation</a>.
+        </p>
+        <p>
+          The separate Warp <code>DynamicTable</code> prototype supports device-side append, deletion, and grouping within
+          committed capacity. Components remain at stable column addresses. Entity handles contain a slot and generation number,
+          so a deleted entity’s handle becomes invalid when that slot is reused.
+        </p>
+        <div class="card">
+          <h3>What compaction does</h3>
+          <p class="small">
+            Deleted rows leave holes. Compaction gathers live rows together, groups them by world, and updates each surviving
+            handle’s row mapping. Scratch holds intermediate copies, then results return to the original component arrays. The
+            array addresses stay fixed even though entity rows move. Ordering within a world is unspecified.
+          </p>
+        </div>
+        <p style="margin-top: 22px">
+          The pooled mjwarp runner uses dedicated persistent arrays and model worklists. It does not store the entire physics
+          solver in <code>DynamicTable</code>, and it is not a complete ECS rewrite. Physical table growth remains a separate
+          host operation between completed replays.
+        </p>
+        <h3>What zero-copy tensor access means here</h3>
+        <p>
+          Stable persistent GPU arrays can be shared with learning frameworks through tensor interoperability such as DLPack.
+          That avoids copying their contents into a separate framework allocation. Internal gather/scatter still copies data on
+          the GPU. Policy code must use the model ID to interpret valid observation and action widths. DLPack ownership was
+          tested; PyTorch integration itself was not exercised in this environment.
+        </p>
+      </section>
+
+      <section id="measurements">
+        <span class="section-number">08 / Measured behavior</span>
+        <h2>Workspace size trades memory for throughput.</h2>
+        <p>
+          The benchmark uses 8,192 worlds with dual primitive arms, a humanoid, and a single primitive arm. It runs one
+          unchanged graph through balanced populations, all humanoids, all single arms, and balanced populations again. Every
+          run reported zero sticky overflow and nonfinite-state flags.
+        </p>
+        <div class="table-wrap">
+          <table id="pooled-benchmarks">
+            <thead>
+              <tr>
+                <th scope="col">Working rows</th>
+                <th scope="col">Owned memory<br />MB</th>
+                <th scope="col">Mixed<br />M env steps/s</th>
+                <th scope="col">All humanoids<br />M env steps/s</th>
+                <th scope="col">All single arms<br />M env steps/s</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">1,024</th>
+                <td>108.7</td>
+                <td>2.555</td>
+                <td>2.953</td>
+                <td>2.886</td>
+              </tr>
+              <tr>
+                <th scope="row">2,731</th>
+                <td>249.2</td>
+                <td>6.416</td>
+                <td>6.208</td>
+                <td>7.206</td>
+              </tr>
+              <tr>
+                <th scope="row">4,096</th>
+                <td>360.4</td>
+                <td>5.490</td>
+                <td>7.346</td>
+                <td>9.981</td>
+              </tr>
+            </tbody>
+            <caption>
+              MB = 1,000,000 bytes. “M env steps/s” counts individual world timesteps, not whole-batch steps. These are measured
+              results, not estimates.
+            </caption>
+          </table>
+        </div>
+        <div class="card js-only">
+          <div class="bench-controls">
+            <label for="population">Compare a measured population</label
+            ><select id="population">
+              <option value="balanced">Mixed: 2,731 / 2,731 / 2,730</option>
+              <option value="all_humanoid">All 8,192 humanoids</option>
+              <option value="all_single_arm">All 8,192 single arms</option>
+            </select>
+          </div>
+          <div class="benchmark-layout">
+            <div>
+              <h3>Owned memory</h3>
+              <div class="legend">
+                <span><i class="swatch" style="background: #407b7c"></i>Data, state, models, mappings</span
+                ><span><i class="swatch" style="background: #c8ad7e"></i>Preallocated scratch</span>
+              </div>
+              <div id="memory-bars"></div>
+            </div>
+            <div>
+              <h3 id="throughput-title">Mixed throughput</h3>
+              <p class="caption">Million environment steps per second; common 0–10 scale.</p>
+              <div id="speed-bars"></div>
+            </div>
+          </div>
+          <p id="population-explanation" class="small"></p>
+        </div>
+        <p style="margin-top: 22px">
+          For the balanced mix, 1,024 working rows require three chunks per model: nine physics-pipeline executions per
+          timestep. A 2,731-row workspace needs only three executions in total, with almost no vacant rows. A 4,096-row
+          workspace still needs three but processes more vacant rows. When all worlds use one model, 4,096 rows need only two
+          chunks and become more effective.
+        </p>
+        <div class="card">
+          <h3>Where the 249.2 MB goes</h3>
+          <div class="memory-detail">
+            <div><b>7.63 MB</b>Persistent world state</div>
+            <div><b>90.18 MB</b>Shared physics Data</div>
+            <div><b>150.99 MB</b>Capture scratch budget</div>
+            <div><b>0.42 MB</b>Models, defaults, mappings</div>
+          </div>
+          <p class="caption">
+            The largest actual scratch use in this run was 142.48 MB; the full 150.99 MB budget remains allocated. No runtime
+            growth occurs.
+          </p>
+        </div>
+        <details style="margin-top: 24px">
+          <summary><strong>Measurement conditions and accounting</strong></summary>
+          <p class="small" style="margin-top: 14px">
+            Hardware: NVIDIA RTX PRO 6000 Blackwell Workstation Edition. Software: MuJoCo 3.12.1 and local Warp 1.19.0.dev0.
+            Each working world has capacity for 16 contacts and 64 constraint rows. Timestep: 0.002 s; Newton solver with 10
+            iterations and 50 line-search iterations. Constant controls are 0.05. A graph launch contains ten timesteps. GPU
+            episode resets occur every 200 steps. Each population stage has five untimed warmup rollouts and five timed 200-step
+            rollouts; reported times are medians measured with CUDA events. No concurrent compute tests ran during the
+            measurements.
+          </p>
+          <p class="small">
+            Totals include model arrays, persistent state, mappings, reset defaults, committed shared Data, and the entire
+            preallocated scratch budget. CUDA context, compiled code, graph metadata, and allocator caches are excluded. Models
+            and memory are created before timing. The test does not measure rendering, learned policies, or a complete training
+            workload.
+          </p>
+        </details>
+        <h3 style="margin-top: 30px">How this compares with the earlier paths</h3>
+        <p>
+          The earlier fixed-population comparison measured a sleep union at 627.1 MB and 5.103 million steps/s, and ordinary
+          model groups at 202.4 MB and 6.746 million steps/s, using the tighter tested contact limits. Those memory totals
+          exclude graph scratch, so they must not be treated as directly comparable totals to the pooled figures above.
+        </p>
+        <p>
+          In a separate GPU-reset benchmark, fixed model batches achieved 7.108 million steps/s for the baseline with periodic
+          resets, 6.940 with reassignment machinery enabled but no type changes, and 6.662 while changing 96 worlds every ten
+          steps. Fixed capacities remain a useful fast path when the population envelope is known.
+        </p>
+        <p>
+          For fixed homogeneous worlds, the ordinary grouping wrapper was within 0.3% of original mjwarp throughput in the
+          measured runs. The pooled path adds gather/scatter, initialization, and chunk scheduling. Original homogeneous mjwarp
+          reached 11.872 million steps/s for humanoids and 17.984 million for single arms in earlier tests with different
+          reset/warmup conditions. The pooled results establish flexible GPU-driven population changes; they do not establish a
+          homogeneous speedup. Full comparison details are in the <a href="README.md">engineering report</a>.
+        </p>
+      </section>
+
+      <section id="boundaries">
+        <span class="section-number">09 / Scope and validation</span>
+        <h2>Flexible assignments within a prepared catalog.</h2>
+        <div class="grid2">
+          <article class="card">
+            <h3>Supported in the pooled prototype</h3>
+            <ul class="small">
+              <li>GPU-produced model requests and same-model resets.</li>
+              <li>Any population distribution across catalog models.</li>
+              <li>Stable logical IDs and persistent state addresses.</li>
+              <li>Device validation, grouping, and chunk scheduling.</li>
+              <li>One unchanged graph across population changes.</li>
+              <li>Selected world-indexed persistent observations.</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Prepared or restricted at startup</h3>
+            <ul class="small">
+              <li>World count, model catalog, and reset defaults.</li>
+              <li>Contact, constraint, workspace, and scratch capacities.</li>
+              <li>All physical backing needed for replay.</li>
+              <li>No insertion of new bodies/joints into a running model.</li>
+              <li>Pooled sleeping is unsupported; derived caches need extra persistence.</li>
+              <li>Global policy kernels replace model control callbacks.</li>
+            </ul>
+          </article>
+        </div>
+        <p style="margin-top: 22px">
+          A memory budget does not guarantee enough contact or constraint capacity for every task. Configure those capacities
+          for the scene. The pooled runner records sticky per-world overflow and nonfinite-state diagnostics, so later workspace
+          reuse or episode resets do not hide earlier failures.
+        </p>
+        <p>
+          Correctness checks compare pooled simulation against independent physics runs. They cover all four integrators,
+          contacts on translated and rotated static planes, delayed actuators and sensors, mocap and user data, applied forces,
+          invalid transactions, multiple chunks, and unchanged state pointers. Focused GPU-loop tests make host array readback
+          and explicit device synchronization functions fail if called during capture/replay.
+        </p>
+        <div class="note">
+          <p>
+            <strong>Validation result: 383 passed, 11 skipped</strong> across the experimental suite and existing IO, forward,
+            sleeping, and history regressions. Final lint and kernel checks passed. Warp tests additionally cover capture
+            scratch, virtual-memory ownership/growth, dynamic tables, and allocator/graph regressions. These checks establish
+            prototype behavior for the covered cases; they are not a claim of production completeness.
+          </p>
+        </div>
+        <p>
+          Next engineering steps include avoiding vacant-row physics, reducing temporary scratch through finer lifetime reuse,
+          packing persistent fields where padding becomes expensive, preserving sleeping caches, and building richer
+          model-specific action and observation interfaces.
+        </p>
+      </section>
+
+      <section id="sources">
+        <span class="section-number">10 / Explore the implementation</span>
+        <h2>Start with the small example.</h2>
+        <p>
+          The example has six worlds and a two-row workspace. A GPU episode kernel changes all worlds to one robot type, then
+          another, then restores a mixed population. Host inspection happens after the rollout.
+        </p>
+        <pre><code>cd /home/mhaiderbhai/code/mustafa_mjwarp
+uv run --no-sync python -m mujoco_warp.experimental.pooled_example</code></pre>
+        <p class="small">
+          This assumes the local Warp fork is already built and linked. Setup and benchmark reproduction commands are in
+          <a href="README.md">README.md</a>.
+        </p>
+        <ul class="source-list">
+          <li><a href="pooled_example.py">pooled_example.py</a> — a minimal GPU-driven episode loop.</li>
+          <li>
+            <a href="pooled.py">pooled.py</a> — persistent state, shared arena, chunk physics, graph capture, and memory
+            reporting.
+          </li>
+          <li><a href="pooled_worklist.py">pooled_worklist.py</a> — request transactions and grouped world IDs.</li>
+          <li>
+            <a href="heterogeneous.py">heterogeneous.py</a> and <a href="device_reset.py">device_reset.py</a> — fixed-capacity
+            model batches and GPU slot reassignment.
+          </li>
+          <li>
+            <a href="../../../mustafa_warp/design/capture-scratch.md">Capture scratch design</a>,
+            <a href="../../../mustafa_warp/design/cuda-virtual-memory.md">virtual-memory design</a>, and
+            <a href="../../../mustafa_warp/design/dynamic-component-tables.md">dynamic-table design</a> in the sibling Warp
+            fork.
+          </li>
+          <li>
+            Raw pooled results: <a href="../../benchmarks/heterogeneous_results/pooled_1024_8192.json">1,024 rows</a>,
+            <a href="../../benchmarks/heterogeneous_results/pooled_2731_8192.json">2,731 rows</a>,
+            <a href="../../benchmarks/heterogeneous_results/pooled_4096_8192.json">4,096 rows</a>.
+          </li>
+          <li>
+            <a href="heterogeneous_engineering_report.html">HTML engineering report</a> — Warp APIs, native implementation,
+            mjwarp reset planners, pooled execution, and integration contracts.
+          </li>
+          <li>
+            <a href="README.md">Markdown engineering notes</a> — methodology, older sleep/grouped/homogeneous comparisons,
+            reproduction commands, and limitations.
+          </li>
+          <li>
+            <a href="https://madrona-engine.github.io/shacklett_siggraph23.pdf">Madrona paper</a> and
+            <a href="https://github.com/google-deepmind/mujoco_warp/pull/1680">mjwarp sleep PR #1680</a> — the original
+            architectural and baseline context.
+          </li>
+        </ul>
+      </section>
+      <footer class="footer">
+        Prepared from the local Warp and MuJoCo Warp prototypes and saved benchmark outputs. This single file includes its
+        styles, diagrams, benchmark data, and interactions; no external scripts, fonts, or network requests are required to read
+        it.
+      </footer>
+    </main>
+    <script>
+      "use strict";
+      document.documentElement.classList.add("has-js");
+      const models = [
+        { name: "Humanoid", cls: "human", width: 8 },
+        { name: "Single arm", cls: "arm", width: 3 },
+        { name: "Dual arm", cls: "dual", width: 6 },
+      ];
+      const initialModels = [0, 1, 2, 0, 1, 0];
+      let assignments = [...initialModels];
+      let requests = Array(6).fill(-1);
+      let epochs = Array(6).fill(0);
+      let transaction = 0;
+      const worldRows = document.getElementById("world-rows");
+      const status = document.getElementById("reset-status");
+      function renderWorlds() {
+        worldRows.innerHTML = assignments
+          .map((modelId, world) => {
+            const model = models[modelId];
+            const cells = Array.from(
+              { length: 8 },
+              (_, i) => `<span class="state-cell ${i < model.width ? "active " + model.cls : ""}"></span>`,
+            ).join("");
+            const options = [
+              { id: -1, label: "−1 · No reset" },
+              ...models.map((m, id) => ({ id, label: `${id} · ${m.name}` })),
+              { id: 99, label: "99 · Invalid model" },
+            ];
+            return `<tr><th scope="row">World ${world}<br><span class="muted mono small">row[${world}]</span></th><td><span class="pill ${model.cls}">${model.name}</span><span class="state-cells" role="img" aria-label="Illustrative state width: ${model.width} of 8 cells">${cells}</span></td><td class="epoch mono">${epochs[world]}</td><td><select data-world="${world}" aria-label="Reset request for world ${world}">${options.map((o) => `<option value="${o.id}" ${requests[world] === o.id ? "selected" : ""}>${o.label}</option>`).join("")}</select></td></tr>`;
+          })
+          .join("");
+        renderWorkspace();
+      }
+      function renderWorkspace() {
+        let chunks = 0;
+        document.getElementById("workspace-groups").innerHTML = models
+          .map((model, id) => {
+            const worlds = assignments.map((value, world) => (value === id ? world : -1)).filter((world) => world >= 0);
+            let rows = "";
+            for (let i = 0; i < worlds.length; i += 2) {
+              chunks++;
+              rows += `<div class="chunk"><span class="slot ${model.cls}">World ${worlds[i]}</span>${i + 1 < worlds.length ? `<span class="slot ${model.cls}">World ${worlds[i + 1]}</span>` : '<span class="slot vacant">Unused row</span>'}</div>`;
+            }
+            return `<div class="work-group"><h4>${model.name} · ${worlds.length} world${worlds.length === 1 ? "" : "s"}</h4>${rows || '<span class="muted">Empty: physics branch skipped</span>'}</div>`;
+          })
+          .join("");
+        document.getElementById("chunk-summary").textContent =
+          `${chunks} sequential chunks × 2 working rows = ${chunks * 2} row slots processed; 6 contain logical worlds and ${chunks * 2 - 6} are unused. All chunks reuse the same two-row workspace. List ordering here is illustrative.`;
+      }
+      function announce(message, error = false) {
+        status.textContent = message;
+        status.classList.toggle("error", error);
+      }
+      worldRows.addEventListener("change", (event) => {
+        if (!event.target.matches("select[data-world]")) return;
+        requests[Number(event.target.dataset.world)] = Number(event.target.value);
+        const count = requests.filter((id) => id !== -1).length;
+        announce(
+          `${count} pending reset request${count === 1 ? "" : "s"}. Assignments and epochs stay unchanged until the transaction is applied.`,
+        );
+      });
+      function queue(values) {
+        requests = [...values];
+        renderWorlds();
+        announce("Six reset requests queued. Apply the transaction to update the population.");
+      }
+      document.getElementById("queue-humanoid").addEventListener("click", () => queue(Array(6).fill(0)));
+      document.getElementById("queue-arm").addEventListener("click", () => queue(Array(6).fill(1)));
+      document.getElementById("queue-mixed").addEventListener("click", () => queue([...initialModels]));
+      document.getElementById("restart-demo").addEventListener("click", () => {
+        assignments = [...initialModels];
+        requests = Array(6).fill(-1);
+        epochs = Array(6).fill(0);
+        transaction = 0;
+        renderWorlds();
+        announce("Initial population restored. All requests are −1; no reset is pending.");
+      });
+      document.getElementById("apply-reset").addEventListener("click", () => {
+        transaction++;
+        if (requests.some((id) => id !== -1 && (id < 0 || id >= models.length))) {
+          announce(
+            `Transaction ${transaction} rejected: a model ID is outside the catalog. No world or epoch changed; requests remain pending. Correct the invalid request to retry.`,
+            true,
+          );
+          return;
+        }
+        let resetCount = 0,
+          changedCount = 0;
+        requests.forEach((id, world) => {
+          if (id === -1) return;
+          resetCount++;
+          if (assignments[world] !== id) changedCount++;
+          assignments[world] = id;
+          epochs[world]++;
+          requests[world] = -1;
+        });
+        renderWorlds();
+        announce(
+          `Transaction ${transaction}: ${resetCount} world${resetCount === 1 ? "" : "s"} reset, ${changedCount} changed model. ${changedCount ? "Worklists regrouped." : "Existing worklists reused."} Graph, state addresses, and workspace capacity remain unchanged.`,
+        );
+      });
+      renderWorlds();
+
+      // Saved benchmark values, in bytes and environment steps per second. No timing is synthesized.
+      const measurements = [
+        {
+          batch: 1024,
+          total: 108707193,
+          scratch: 67108864,
+          balanced: 2554586.4234052193,
+          all_humanoid: 2952990.1401417977,
+          all_single_arm: 2885800.1479691016,
+        },
+        {
+          batch: 2731,
+          total: 249223205,
+          scratch: 150994944,
+          balanced: 6415994.462513935,
+          all_humanoid: 6207755.570690037,
+          all_single_arm: 7205834.935294633,
+        },
+        {
+          batch: 4096,
+          total: 360377721,
+          scratch: 218103808,
+          balanced: 5490321.385791702,
+          all_humanoid: 7346134.169653034,
+          all_single_arm: 9980751.51750407,
+        },
+      ];
+      document.getElementById("memory-bars").innerHTML = measurements
+        .map(
+          (m) =>
+            `<div class="bar-row"><div class="bar-top"><span>${m.batch.toLocaleString("en-US")} rows</span><strong>${(m.total / 1e6).toFixed(1)} MB</strong></div><div class="track" role="img" aria-label="${m.batch} rows: ${((m.total - m.scratch) / 1e6).toFixed(1)} MB Data, state, models and mappings; ${(m.scratch / 1e6).toFixed(1)} MB scratch"><div class="segment data-segment" style="width:${(100 * (m.total - m.scratch)) / 400e6}%"></div><div class="segment scratch-segment" style="width:${(100 * m.scratch) / 400e6}%"></div></div></div>`,
+        )
+        .join("");
+      function renderBenchmarks() {
+        const population = document.getElementById("population").value;
+        document.getElementById("throughput-title").textContent = {
+          balanced: "Mixed throughput",
+          all_humanoid: "All-humanoid throughput",
+          all_single_arm: "All-single-arm throughput",
+        }[population];
+        document.getElementById("speed-bars").innerHTML = measurements
+          .map((m) => {
+            const speed = m[population] / 1e6;
+            return `<div class="bar-row"><div class="bar-top"><span>${m.batch.toLocaleString("en-US")} rows</span><strong>${speed.toFixed(3)} M steps/s</strong></div><div class="track" role="img" aria-label="${m.batch} rows: ${speed.toFixed(3)} million environment steps per second"><div class="speed-bar" style="width:${speed * 10}%"></div></div></div>`;
+          })
+          .join("");
+        document.getElementById("population-explanation").textContent =
+          population === "balanced"
+            ? "For this balanced mix, 2,731 working rows minimize partial chunks and give the highest measured mixed throughput among these sizes. The memory budget does not change with the selected population."
+            : "With one model active, 4,096 working rows cover all 8,192 worlds in two chunks. Empty model branches skip physics. The memory budget remains the same as in the mixed stage.";
+      }
+      document.getElementById("population").addEventListener("change", renderBenchmarks);
+      renderBenchmarks();
+      document.getElementById("print-report").addEventListener("click", () => window.print());
+      if ("IntersectionObserver" in window) {
+        const observer = new IntersectionObserver(
+          (entries) => {
+            const visible = entries
+              .filter((entry) => entry.isIntersecting)
+              .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+            if (!visible.length) return;
+            document.querySelectorAll("nav a").forEach((link) => {
+              if (link.hash === "#" + visible[0].target.id) link.setAttribute("aria-current", "location");
+              else link.removeAttribute("aria-current");
+            });
+          },
+          { rootMargin: "-5% 0px -65% 0px", threshold: 0 },
+        );
+        document.querySelectorAll("main section").forEach((section) => observer.observe(section));
+      }
+    </script>
+  </body>
+</html>

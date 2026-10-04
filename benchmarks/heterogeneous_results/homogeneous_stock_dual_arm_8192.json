@@ -1,0 +1,92 @@
+{
+  "mode": "original",
+  "model_selection": "dual_arm",
+  "virtual": false,
+  "group_sleep": false,
+  "device": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "warp_version": "1.15.0",
+  "mujoco_version": "3.12.1",
+  "mjwarp_revision": "eb912f1d6ca376e233f60e14df9751f2bb6a8e35",
+  "mjwarp_path": "/home/mhaiderbhai/code/mustafa_mjwarp",
+  "warp_path": "/home/mhaiderbhai/.cache/uv/archive-v0/f5NIss2PeZ1xMyJF/lib/python3.12/site-packages",
+  "nworld": 8192,
+  "model_counts": [
+    8192,
+    0,
+    0
+  ],
+  "models": [
+    {
+      "nq": 21,
+      "nv": 20,
+      "nu": 14,
+      "nbody": 16,
+      "ngeom": 17
+    },
+    {
+      "nq": 28,
+      "nv": 27,
+      "nu": 21,
+      "nbody": 17,
+      "ngeom": 21
+    },
+    {
+      "nq": 14,
+      "nv": 13,
+      "nu": 7,
+      "nbody": 9,
+      "ngeom": 10
+    }
+  ],
+  "union": {
+    "nq": 63,
+    "nv": 60,
+    "nu": 42,
+    "nbody": 40,
+    "ngeom": 44
+  },
+  "nconmax": 16,
+  "njmax": 64,
+  "steps": 200,
+  "unroll": 10,
+  "warmup_samples": 5,
+  "seconds_samples": [
+    0.11774246215820312,
+    0.11722176361083984,
+    0.11599657440185547,
+    0.1162384033203125,
+    0.11608153533935547,
+    0.11431983947753906,
+    0.1143045425415039,
+    0.11474543762207032,
+    0.11467011260986328,
+    0.11442153930664062
+  ],
+  "host_seconds_samples": [
+    0.11777922001783736,
+    0.11725523302447982,
+    0.1160327160032466,
+    0.11627300598775037,
+    0.11611508898204193,
+    0.11434994701994583,
+    0.11433742800727487,
+    0.11478449002606794,
+    0.11470750501030125,
+    0.11445614701369777
+  ],
+  "env_steps_per_second": 14201141.661450999,
+  "milliseconds_per_batch_step": 0.5768550300598145,
+  "model_bytes": 28879,
+  "data_bytes": 194478088,
+  "compile_seconds": 1.2200566300016362,
+  "max_constraints": [
+    24
+  ],
+  "contacts": [
+    49048
+  ],
+  "overflow": [
+    0
+  ],
+  "all_states_finite": true
+}

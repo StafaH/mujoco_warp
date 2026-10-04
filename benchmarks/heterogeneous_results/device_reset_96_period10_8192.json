@@ -1,0 +1,74 @@
+{
+  "nworld": 8192,
+  "switch_worlds": 96,
+  "switch_period_steps": 10,
+  "episode_length": 200,
+  "device_resets_enabled": true,
+  "active_environment_steps_per_second": 6661994.43918547,
+  "batch_step_ms": 1.2296617889404298,
+  "sample_seconds": [
+    0.2459586181640625,
+    0.24549827575683594,
+    0.24592764282226562,
+    0.24593235778808595,
+    0.24663641357421875
+  ],
+  "memory": {
+    "groups": [
+      {
+        "model_id": 0,
+        "nworld": 2731,
+        "capacity": 2731,
+        "active_worlds": 2731,
+        "inactive_slots": 0,
+        "model_bytes": 28879,
+        "data_bytes": 64833948,
+        "virtual_committed_bytes": 0,
+        "virtual_reserved_bytes": 0,
+        "arena_requested_bytes": 0,
+        "arena_highwater_bytes": 0
+      },
+      {
+        "model_id": 1,
+        "nworld": 2731,
+        "capacity": 2731,
+        "active_worlds": 2731,
+        "inactive_slots": 0,
+        "model_bytes": 57452,
+        "data_bytes": 88549952,
+        "virtual_committed_bytes": 0,
+        "virtual_reserved_bytes": 0,
+        "arena_requested_bytes": 0,
+        "arena_highwater_bytes": 0
+      },
+      {
+        "model_id": 2,
+        "nworld": 2731,
+        "capacity": 2731,
+        "active_worlds": 2730,
+        "inactive_slots": 1,
+        "model_bytes": 14870,
+        "data_bytes": 48753820,
+        "virtual_committed_bytes": 0,
+        "virtual_reserved_bytes": 0,
+        "arena_requested_bytes": 0,
+        "arena_highwater_bytes": 0
+      }
+    ],
+    "mapping_bytes": 131076,
+    "device_reset_bytes": 296040,
+    "layout_version": 0,
+    "active_worlds": 8192,
+    "physical_slots": 8193,
+    "inactive_slots": 1,
+    "total_bytes": 202666037
+  },
+  "device_reset_status": [
+    0
+  ],
+  "committed_world_resets": 100160,
+  "finite_state": true,
+  "overflow": false,
+  "graph_reused": true,
+  "notes": "Reset decisions, capacity checks, reassignment and initialization execute inside every captured step. No host reset calls or mapping readbacks occur during rollout. Readbacks above inspect final results only. Timings include device maintenance and reset work; physical capacities are fixed at startup. Every 200 steps all episodes reset to their current model on GPU, including the plain baseline."
+}

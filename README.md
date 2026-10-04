@@ -113,6 +113,10 @@ If you prefer [PyTorch](https://pytorch.org/) for research, consider one of thes
 * [Isaac Lab](https://github.com/isaac-sim/IsaacLab/tree/feature/newton) integrates MJWarp via [Newton](https://github.com/newton-physics/newton).  This setup enables powerful, highly extensible multi-physics simulation with deep NVIDIA ecosystem integration.
 * [mjlab](https://github.com/mujocolab/mjlab) exposes the [Isaac Lab](https://github.com/isaac-sim/IsaacLab) manager-based API directly on top of MJWarp, providing a focused framework for robotics research with minimal dependencies and direct access to native MuJoCo data structures.
 
+# Heterogeneous worlds prototype
+
+This fork includes an [experimental heterogeneous runner and dynamic memory prototype](mujoco_warp/experimental/README.md), backed by the local Warp fork. The design note includes runnable examples, 8,192-world comparisons with the sleep-policy implementation, and the remaining work for live changes to physics topology.
+
 # MuJoCo API Compatibility
 
 MuJoCo Warp supports the same features as MuJoCo with the following exceptions:

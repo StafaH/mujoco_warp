@@ -1654,6 +1654,7 @@ def make_data(
   naconmax: Optional[int] = None,
   naccdmax: Optional[int] = None,
   nvmax: Optional[int] = None,
+  contact_storage: Any = None,
 ) -> types.Data:
   """Creates a data object on device.
 
@@ -1669,6 +1670,9 @@ def make_data(
     naconmax: Number of contacts to allocate for all worlds. Overrides nconmax.
     naccdmax: Maximum number of CCD contacts. Defaults to naconmax.
     nvmax: Capacity for compacted active DOFs per world. Defaults to nv.
+    contact_storage: Optional experimental owner providing make_contact(model, capacity,
+                     pyramid_width). Its arrays replace native contact allocations. The
+                     owner must outlive this Data and every graph referencing it.
 
   Returns:
     The data object containing the current state and output arrays (device).
@@ -1756,14 +1760,19 @@ def make_data(
     else:
       njmax_nnz = njmax * mjm.nv
 
-  contact_kwargs = {}
-  for f in dataclasses.fields(types.Contact):
-    if f.name in ["flex", "elem", "vert"] and mjm.nflex == 0:
-      contact_kwargs[f.name] = wp.empty(0, dtype=wp.vec2i)
-    else:
-      contact_kwargs[f.name] = _create_array(None, f.type, sizes)
-  contact = types.Contact(**contact_kwargs)
-  contact.efc_address = wp.array(np.full((naconmax, sizes["nmaxpyramid"]), -1, dtype=int), dtype=int)
+  if contact_storage is None:
+    contact_kwargs = {}
+    for f in dataclasses.fields(types.Contact):
+      if f.name in ["flex", "elem", "vert"] and mjm.nflex == 0:
+        contact_kwargs[f.name] = wp.empty(0, dtype=wp.vec2i)
+      else:
+        contact_kwargs[f.name] = _create_array(None, f.type, sizes)
+    contact = types.Contact(**contact_kwargs)
+    contact.efc_address = wp.array(np.full((naconmax, sizes["nmaxpyramid"]), -1, dtype=int), dtype=int)
+  else:
+    if contact_storage.device != wp.get_device():
+      raise ValueError("contact_storage must be on the current device")
+    contact = contact_storage.make_contact(mjm, naconmax, sizes["nmaxpyramid"])
 
   efc = _create_constraint(mjm, nworld, njmax, sizes)
 

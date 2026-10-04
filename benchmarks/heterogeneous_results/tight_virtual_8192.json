@@ -1,0 +1,122 @@
+{
+  "mode": "grouped",
+  "virtual": true,
+  "group_sleep": false,
+  "device": "NVIDIA RTX PRO 6000 Blackwell Workstation Edition",
+  "warp_version": "1.19.0.dev0",
+  "mujoco_version": "3.12.1",
+  "mjwarp_revision": "f89afae9decb475bcf0361fd81cbc9eaf589dfa7",
+  "mjwarp_path": "/home/mhaiderbhai/code/mjwarp-sleep-baseline",
+  "warp_path": "/home/mhaiderbhai/code/mustafa_warp",
+  "nworld": 8192,
+  "model_counts": [
+    2731,
+    2731,
+    2730
+  ],
+  "models": [
+    {
+      "nq": 21,
+      "nv": 20,
+      "nu": 14,
+      "nbody": 16,
+      "ngeom": 17
+    },
+    {
+      "nq": 28,
+      "nv": 27,
+      "nu": 21,
+      "nbody": 17,
+      "ngeom": 21
+    },
+    {
+      "nq": 14,
+      "nv": 13,
+      "nu": 7,
+      "nbody": 9,
+      "ngeom": 10
+    }
+  ],
+  "union": {
+    "nq": 63,
+    "nv": 60,
+    "nu": 42,
+    "nbody": 40,
+    "ngeom": 44
+  },
+  "nconmax": 16,
+  "njmax": 64,
+  "steps": 200,
+  "unroll": 10,
+  "seconds_samples": [
+    0.2409625244140625,
+    0.23578192138671875,
+    0.2403931884765625,
+    0.24152748107910157,
+    0.24148077392578124
+  ],
+  "host_seconds_samples": [
+    0.24098877400683705,
+    0.23580148701148573,
+    0.240415952008334,
+    0.2415524620009819,
+    0.24150504100543913
+  ],
+  "env_steps_per_second": 6799397.557707457,
+  "milliseconds_per_batch_step": 1.2048126220703126,
+  "model_bytes": 97505,
+  "data_bytes": 202119868,
+  "compile_seconds": 1.070641081998474,
+  "max_constraints": [
+    24,
+    36,
+    20
+  ],
+  "contacts": [
+    16350,
+    27310,
+    13610
+  ],
+  "overflow": [
+    0,
+    0,
+    0
+  ],
+  "all_states_finite": true,
+  "memory_report": {
+    "groups": [
+      {
+        "model_id": 0,
+        "nworld": 2731,
+        "model_bytes": 28879,
+        "data_bytes": 67108864,
+        "virtual_committed_bytes": 67108864,
+        "virtual_reserved_bytes": 4294967296,
+        "arena_requested_bytes": 65544008,
+        "arena_highwater_bytes": 65558016
+      },
+      {
+        "model_id": 1,
+        "nworld": 2731,
+        "model_bytes": 57452,
+        "data_bytes": 90177536,
+        "virtual_committed_bytes": 90177536,
+        "virtual_reserved_bytes": 4294967296,
+        "arena_requested_bytes": 89260012,
+        "arena_highwater_bytes": 89275648
+      },
+      {
+        "model_id": 2,
+        "nworld": 2730,
+        "model_bytes": 14870,
+        "data_bytes": 50331648,
+        "virtual_committed_bytes": 50331648,
+        "virtual_reserved_bytes": 4294967296,
+        "arena_requested_bytes": 49445768,
+        "arena_highwater_bytes": 49458432
+      }
+    ],
+    "mapping_bytes": 131072,
+    "total_bytes": 207850321
+  }
+}
