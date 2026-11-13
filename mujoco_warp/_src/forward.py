@@ -472,7 +472,7 @@ def _advance(m: Model, d: Data, qacc: wp.array, qvel: Optional[wp.array] = None)
   wp.copy(d.qacc_warmstart, d.qacc)
 
   sleep_enabled = bool(m.opt.enableflags & EnableBit.SLEEP) and not bool(m.opt.disableflags & DisableBit.ISLAND)
-  if sleep_enabled:
+  if sleep_enabled and not m.opt.sleep_static:
     sleep.sleep(m, d)
     fwd_velocity(m, d)
     sleep.update_sleep(m, d)
@@ -1448,7 +1448,7 @@ def fwd_kinematics(m: Model, d: Data):
   smooth.tendon(m, d)
 
   sleep_enabled = bool(m.opt.enableflags & EnableBit.SLEEP) and not bool(m.opt.disableflags & DisableBit.ISLAND)
-  if sleep_enabled and m.ntendon > 0:
+  if sleep_enabled and m.ntendon > 0 and not m.opt.sleep_static:
     sleep.wake_tendon(m, d)
     sleep.update_sleep_trees(m, d)
 
@@ -1470,8 +1470,10 @@ def fwd_position(m: Model, d: Data, factorize: bool = True):
   smooth.tendon_armature(m, d)
   if factorize:
     smooth.factor_m(m, d)
+  # with a static sleep state nothing wakes: one collision pass, and no islands to sleep by
+  sleep_dynamic = sleep_enabled and not m.opt.sleep_static
   if m.opt.run_collision_detection:
-    if sleep_enabled:
+    if sleep_dynamic:
       # pass 1
       collision_driver.collision(m, d)
       # wake any sleeping tree touched by an awake one
@@ -1488,12 +1490,12 @@ def fwd_position(m: Model, d: Data, factorize: bool = True):
 
   constraint.make_constraint(m, d)
 
-  if sleep_enabled:
+  if sleep_dynamic:
     if m.neq > 0:
       sleep.wake_equality(m, d)
     sleep.update_sleep(m, d)
 
-  if sleep_enabled:
+  if sleep_dynamic:
     island.island(m, d)
   smooth.transmission(m, d)
   if m.opt.integrator == IntegratorType.DISCRETE:
@@ -2233,7 +2235,9 @@ def forward(m: Model, d: Data):
   """Forward dynamics."""
   check_discrete(m)
   sleep_enabled = bool(m.opt.enableflags & EnableBit.SLEEP) and not bool(m.opt.disableflags & DisableBit.ISLAND)
-  if sleep_enabled:
+  if sleep_enabled and m.opt.sleep_static:
+    sleep.hold_asleep(m, d)
+  elif sleep_enabled:
     sleep.wake(m, d)
     sleep.update_sleep(m, d)
 

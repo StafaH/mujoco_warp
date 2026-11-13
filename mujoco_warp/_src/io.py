@@ -478,6 +478,7 @@ def put_model(mjm: mujoco.MjModel, batch_sizes: dict[str, int] | None = None) ->
   opt.broadphase = types.BroadphaseType.NXN
   opt.broadphase_filter = types.BroadphaseFilter.PLANE | types.BroadphaseFilter.SPHERE | types.BroadphaseFilter.OBB
   opt.graph_conditional = True
+  opt.sleep_static = False
   opt.run_collision_detection = True
   opt.warn_overflow = int(types.OverflowType.ALL)
   opt.deterministic = int(types.DeterminismType.NONE)
@@ -3271,6 +3272,7 @@ def override_model(model: types.Model | mujoco.MjModel, overrides: dict[str, Any
     "opt.broadphase",
     "opt.broadphase_filter",
     "opt.graph_conditional",
+    "opt.sleep_static",
     "opt.contact_sensor_maxmatch",
     "opt.warn_overflow",
     "opt.deterministic",

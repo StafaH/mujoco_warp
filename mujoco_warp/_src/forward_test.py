@@ -2392,8 +2392,8 @@ class DCMotorTest(parameterized.TestCase):
       np.isinf(d.cfrc_ext.numpy()[0]).all(), "cfrc_ext should remain inf when RNE is not requested and sensors disabled"
     )
 
-  @parameterized.parameters(1, 2)
-  def test_heterogeneous_kinematic_tree(self, nworld):
+  @parameterized.parameters((1, False), (2, False), (2, True))
+  def test_heterogeneous_kinematic_tree(self, nworld, sleep_static):
     """Verify active robot in heterogeneous composite model matches isolated trajectory."""
     _, _, m_iso, d_iso = test_data.fixture(
       xml="""
@@ -2442,12 +2442,18 @@ class DCMotorTest(parameterized.TestCase):
       nvmax=1,
     )
     m_comp.tree_sleep_policy = wp.array(policy_table, dtype=int)
+    m_comp.opt.sleep_static = sleep_static
 
     d_comp.tree_awake.fill_(-1)
     d_comp.body_awake.fill_(-1)
     sleep.update_sleep(m_comp, d_comp)
 
     d_comp.qacc.fill_(wp.inf)
+    if sleep_static:
+      # a velocity written to the sleeping tree does not move it
+      qvel = d_comp.qvel.numpy()
+      qvel[:, 1] = 1.0
+      d_comp.qvel = wp.array(qvel, dtype=float)
     for _ in range(20):
       mjw.step(m_comp, d_comp)
 

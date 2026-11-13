@@ -4052,7 +4052,7 @@ def solve(m: types.Model, d: types.Data):
       solve_compact(m, d)
       if m.opt.noslip_iterations > 0:
         noslip(m, d)
-      if m.ntree > 1:
+      if m.ntree > 1 and not m.opt.sleep_static:
         island.compute_island_mapping(m, d)
       return
 

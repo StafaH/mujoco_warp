@@ -996,6 +996,9 @@ class Option:
     broadphase: broadphase type (BroadphaseType)
     broadphase_filter: broadphase filter bitflag (BroadphaseFilter)
     graph_conditional: flag to use cuda graph conditional
+    sleep_static: if True, no tree changes its sleep state: the trees with SleepPolicy.ALWAYS stay
+      asleep and the others awake, and steps skip the wake, sleep and island passes. Update the
+      sleep state after changing Model.tree_sleep_policy (sleep.update_sleep or reset_data).
     run_collision_detection: if False, skips collision detection and allows user-populated
       contacts during the physics step (as opposed to DisableBit.CONTACT which explicitly
       zeros out the contacts at each step)
@@ -1034,6 +1037,7 @@ class Option:
   broadphase: BroadphaseType
   broadphase_filter: BroadphaseFilter
   graph_conditional: bool
+  sleep_static: bool
   run_collision_detection: bool
   run_rne_postconstraint: bool
   contact_sensor_maxmatch: int

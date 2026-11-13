@@ -242,6 +242,33 @@ def update_sleep(m: types.Model, d: types.Data, flg_staticawake: int = 0):
   )
 
 
+@wp.kernel
+def _hold_asleep(
+  # Model:
+  dof_treeid: wp.array[int],
+  tree_sleep_policy: wp.array2d[int],
+  # Data out:
+  qvel_out: wp.array2d[float],
+  qacc_out: wp.array2d[float],
+):
+  worldid, dofid = wp.tid()
+  treeid = dof_treeid[dofid]
+  if treeid >= 0 and tree_sleep_policy[worldid % tree_sleep_policy.shape[0], treeid] == SleepPolicy.ALWAYS:
+    qvel_out[worldid, dofid] = 0.0
+    qacc_out[worldid, dofid] = 0.0
+
+
+@event_scope
+def hold_asleep(m: types.Model, d: types.Data):
+  """Zeros the velocity and acceleration of the always-asleep trees, which a user may write."""
+  wp.launch(
+    _hold_asleep,
+    dim=(d.nworld, m.nv),
+    inputs=[m.dof_treeid, m.tree_sleep_policy],
+    outputs=[d.qvel, d.qacc],
+  )
+
+
 @event_scope
 def update_sleep_trees(m: types.Model, d: types.Data):
   """Lightweight update of tree_awake array only, avoiding body/dof kernel launches."""
